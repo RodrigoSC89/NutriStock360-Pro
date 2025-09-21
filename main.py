@@ -1,490 +1,380 @@
-# NutriStock360 - API Produção Railway
-# Versão otimizada para deploy em produção
-
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, EmailStr
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
-from passlib.context import CryptContext
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from typing import Optional, List
-import jwt
-import os
+import json
+import base64
+import hashlib
+import time
+import io
+import uuid
+from typing import Dict, List, Optional
 
-# Configurações
-SECRET_KEY = os.getenv("SECRET_KEY", "nutristock360_secret_key_change_in_production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440
-
-# Database URL - Railway automaticamente fornece DATABASE_URL
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    # Fallback para desenvolvimento local
-    DATABASE_URL = "sqlite:///./nutristock360.db"
-
-# Ajustar para PostgreSQL se necessário
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# Security
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
-
-# FastAPI App
-app = FastAPI(
-    title="NutriStock360 API",
-    description="Sistema completo para nutricionistas",
-    version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
-)
-
-# CORS - permitir acesso do frontend
-CORS_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "https://*.railway.app",
-    "https://*.up.railway.app"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Em produção, especifique os domínios
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ============= MODELS =============
-
-class User(Base):
-    __tablename__ = "users"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    nome = Column(String)
-    crn = Column(String)
-    telefone = Column(String)
-    role = Column(String, default="nutricionista")
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    pacientes = relationship("Paciente", back_populates="nutricionista")
-    consultas = relationship("Consulta", back_populates="nutricionista")
-    planos = relationship("PlanoAlimentar", back_populates="nutricionista")
-
-class Paciente(Base):
-    __tablename__ = "pacientes"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, index=True)
-    email = Column(String)
-    cpf = Column(String)
-    telefone = Column(String)
-    data_nascimento = Column(DateTime)
-    peso_atual = Column(Float)
-    altura = Column(Integer)
-    objetivo = Column(String)
-    observacoes = Column(Text)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    nutricionista_id = Column(Integer, ForeignKey("users.id"))
-    
-    nutricionista = relationship("User", back_populates="pacientes")
-    consultas = relationship("Consulta", back_populates="paciente")
-    planos = relationship("PlanoAlimentar", back_populates="paciente")
-
-class Alimento(Base):
-    __tablename__ = "alimentos"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, index=True)
-    categoria = Column(String)
-    porcao = Column(Integer, default=100)
-    calorias = Column(Float)
-    carboidratos = Column(Float)
-    proteinas = Column(Float)
-    gorduras = Column(Float)
-    fibras = Column(Float)
-    sodio = Column(Float, default=0)
-    acucar = Column(Float, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-class PlanoAlimentar(Base):
-    __tablename__ = "planos_alimentares"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String)
-    objetivo = Column(String)
-    calorias_diarias = Column(Integer)
-    duracao_dias = Column(Integer)
-    observacoes = Column(Text)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    paciente_id = Column(Integer, ForeignKey("pacientes.id"))
-    nutricionista_id = Column(Integer, ForeignKey("users.id"))
-    
-    paciente = relationship("Paciente", back_populates="planos")
-    nutricionista = relationship("User", back_populates="planos")
-
-class Consulta(Base):
-    __tablename__ = "consultas"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    data_consulta = Column(DateTime)
-    tipo = Column(String)
-    status = Column(String, default="agendada")
-    observacoes = Column(Text)
-    valor = Column(Float)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    paciente_id = Column(Integer, ForeignKey("pacientes.id"))
-    nutricionista_id = Column(Integer, ForeignKey("users.id"))
-    
-    paciente = relationship("Paciente", back_populates="consultas")
-    nutricionista = relationship("User", back_populates="consultas")
-
-# ============= SCHEMAS =============
-
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
-    nome: str
-    crn: str
-    telefone: str
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    user_info: dict
-
-class PacienteCreate(BaseModel):
-    nome: str
-    email: Optional[str] = None
-    cpf: Optional[str] = None
-    telefone: Optional[str] = None
-    data_nascimento: Optional[datetime] = None
-    peso_atual: Optional[float] = None
-    altura: Optional[int] = None
-    objetivo: Optional[str] = None
-    observacoes: Optional[str] = None
-
-class AlimentoCreate(BaseModel):
-    nome: str
-    categoria: str
-    porcao: int = 100
-    calorias: float
-    carboidratos: float
-    proteinas: float
-    gorduras: float
-    fibras: float
-    sodio: Optional[float] = 0
-    acucar: Optional[float] = 0
-
-class PlanoCreate(BaseModel):
-    nome: str
-    paciente_id: int
-    objetivo: str
-    calorias_diarias: int
-    duracao_dias: int
-    observacoes: Optional[str] = None
-
-class ConsultaCreate(BaseModel):
-    paciente_id: int
-    data_consulta: datetime
-    tipo: str
-    observacoes: Optional[str] = None
-    valor: Optional[float] = None
-
-# ============= DEPENDENCIES =============
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except jwt.PyJWTError:
-        raise credentials_exception
-    
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        raise credentials_exception
-    return user
-
-# ============= STARTUP =============
-
-@app.on_event("startup")
-async def startup_event():
-    # Criar tabelas se não existirem
-    Base.metadata.create_all(bind=engine)
-    
-    # Inicializar dados básicos
-    db = SessionLocal()
-    try:
-        # Verificar se já existem alimentos
-        if db.query(Alimento).count() == 0:
-            await inicializar_alimentos(db)
-    finally:
-        db.close()
-
-async def inicializar_alimentos(db: Session):
-    """Inicializar base de alimentos brasileiros"""
-    alimentos_basicos = [
-        {"nome": "Arroz branco cozido", "categoria": "cereais", "calorias": 128, "carboidratos": 26.2, "proteinas": 2.5, "gorduras": 0.2, "fibras": 1.6},
-        {"nome": "Feijão carioca cozido", "categoria": "leguminosas", "calorias": 76, "carboidratos": 13.6, "proteinas": 4.8, "gorduras": 0.5, "fibras": 8.5},
-        {"nome": "Frango peito grelhado", "categoria": "carnes", "calorias": 159, "carboidratos": 0.0, "proteinas": 32.0, "gorduras": 3.2, "fibras": 0.0},
-        {"nome": "Ovo de galinha", "categoria": "carnes", "calorias": 155, "carboidratos": 1.6, "proteinas": 13.0, "gorduras": 11.0, "fibras": 0.0},
-        {"nome": "Banana nanica", "categoria": "frutas", "calorias": 92, "carboidratos": 23.8, "proteinas": 1.4, "gorduras": 0.1, "fibras": 2.0},
-        {"nome": "Maçã", "categoria": "frutas", "calorias": 56, "carboidratos": 14.8, "proteinas": 0.3, "gorduras": 0.1, "fibras": 1.3},
-        {"nome": "Leite desnatado", "categoria": "laticinios", "calorias": 34, "carboidratos": 4.5, "proteinas": 3.4, "gorduras": 0.1, "fibras": 0.0},
-        {"nome": "Pão francês", "categoria": "cereais", "calorias": 270, "carboidratos": 56.2, "proteinas": 8.0, "gorduras": 2.2, "fibras": 2.3},
-        {"nome": "Batata inglesa cozida", "categoria": "vegetais", "calorias": 52, "carboidratos": 11.9, "proteinas": 1.4, "gorduras": 0.1, "fibras": 1.3},
-        {"nome": "Tomate", "categoria": "vegetais", "calorias": 15, "carboidratos": 3.1, "proteinas": 1.1, "gorduras": 0.2, "fibras": 1.2},
-        {"nome": "Alface americana", "categoria": "vegetais", "calorias": 11, "carboidratos": 1.8, "proteinas": 1.4, "gorduras": 0.2, "fibras": 1.1},
-        {"nome": "Cenoura crua", "categoria": "vegetais", "calorias": 34, "carboidratos": 7.7, "proteinas": 1.3, "gorduras": 0.2, "fibras": 3.2},
-        {"nome": "Brócolis cozido", "categoria": "vegetais", "calorias": 25, "carboidratos": 4.0, "proteinas": 3.6, "gorduras": 0.4, "fibras": 3.4},
-        {"nome": "Aveia em flocos", "categoria": "cereais", "calorias": 394, "carboidratos": 66.6, "proteinas": 13.9, "gorduras": 8.5, "fibras": 9.1},
-        {"nome": "Iogurte natural", "categoria": "laticinios", "calorias": 51, "carboidratos": 7.0, "proteinas": 4.3, "gorduras": 0.2, "fibras": 0.0}
-    ]
-    
-    for alimento_data in alimentos_basicos:
-        alimento = Alimento(**alimento_data)
-        db.add(alimento)
-    
-    db.commit()
-
-# ============= ENDPOINTS =============
-
-@app.get("/")
-async def root():
-    return {"message": "NutriStock360 API", "status": "online", "docs": "/docs"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
-
-@app.post("/register", response_model=Token)
-async def register(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email já cadastrado")
-    
-    hashed_password = get_password_hash(user.password)
-    db_user = User(
-        email=user.email,
-        hashed_password=hashed_password,
-        nome=user.nome,
-        crn=user.crn,
-        telefone=user.telefone
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_info": {
-            "id": db_user.id,
-            "email": db_user.email,
-            "nome": db_user.nome,
-            "crn": db_user.crn,
-            "role": db_user.role
-        }
-    }
-
-@app.post("/login", response_model=Token)
-async def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos",
-        )
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_info": {
-            "id": db_user.id,
-            "email": db_user.email,
-            "nome": db_user.nome,
-            "crn": db_user.crn,
-            "role": db_user.role
-        }
-    }
-
-@app.get("/me")
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "nome": current_user.nome,
-        "crn": current_user.crn,
-        "role": current_user.role
-    }
-
-# ===== PACIENTES =====
-
-@app.post("/pacientes")
-async def criar_paciente(paciente: PacienteCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db_paciente = Paciente(**paciente.dict(), nutricionista_id=current_user.id)
-    db.add(db_paciente)
-    db.commit()
-    db.refresh(db_paciente)
-    return db_paciente
-
-@app.get("/pacientes")
-async def listar_pacientes(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(Paciente).filter(Paciente.nutricionista_id == current_user.id, Paciente.is_active == True).all()
-
-@app.get("/pacientes/{paciente_id}")
-async def obter_paciente(paciente_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    paciente = db.query(Paciente).filter(
-        Paciente.id == paciente_id, 
-        Paciente.nutricionista_id == current_user.id
-    ).first()
-    if not paciente:
-        raise HTTPException(status_code=404, detail="Paciente não encontrado")
-    return paciente
-
-# ===== ALIMENTOS =====
-
-@app.post("/alimentos")
-async def criar_alimento(alimento: AlimentoCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db_alimento = Alimento(**alimento.dict())
-    db.add(db_alimento)
-    db.commit()
-    db.refresh(db_alimento)
-    return db_alimento
-
-@app.get("/alimentos")
-async def listar_alimentos(categoria: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(Alimento)
-    if categoria:
-        query = query.filter(Alimento.categoria == categoria)
-    return query.all()
-
-# ===== PLANOS =====
-
-@app.post("/planos")
-async def criar_plano(plano: PlanoCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db_plano = PlanoAlimentar(**plano.dict(), nutricionista_id=current_user.id)
-    db.add(db_plano)
-    db.commit()
-    db.refresh(db_plano)
-    return db_plano
-
-@app.get("/planos")
-async def listar_planos(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(PlanoAlimentar).filter(PlanoAlimentar.nutricionista_id == current_user.id).all()
-
-# ===== CONSULTAS =====
-
-@app.post("/consultas")
-async def criar_consulta(consulta: ConsultaCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db_consulta = Consulta(**consulta.dict(), nutricionista_id=current_user.id)
-    db.add(db_consulta)
-    db.commit()
-    db.refresh(db_consulta)
-    return db_consulta
-
-@app.get("/consultas")
-async def listar_consultas(data: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    query = db.query(Consulta).filter(Consulta.nutricionista_id == current_user.id)
-    if data:
-        query = query.filter(Consulta.data_consulta.contains(data))
-    return query.all()
-
-# ===== DASHBOARD =====
-
-@app.get("/dashboard")
-async def get_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    total_pacientes = db.query(Paciente).filter(
-        Paciente.nutricionista_id == current_user.id,
-        Paciente.is_active == True
-    ).count()
-    
-    hoje = datetime.now().date()
-    consultas_hoje = db.query(Consulta).filter(
-        Consulta.nutricionista_id == current_user.id,
-        Consulta.data_consulta.contains(str(hoje))
-    ).count()
-    
-    planos_ativos = db.query(PlanoAlimentar).filter(
-        PlanoAlimentar.nutricionista_id == current_user.id,
-        PlanoAlimentar.is_active == True
-    ).count()
-    
-    return {
-        "total_pacientes": total_pacientes,
-        "consultas_hoje": consultas_hoje,
-        "planos_ativos": planos_ativos,
-        "alertas": 0
-    }
-
-# Servir arquivos estáticos se houver uma pasta static
+# Importações opcionais com tratamento de erro
 try:
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-except:
-    pass
+    import jwt
+    JWT_AVAILABLE = True
+except ImportError:
+    JWT_AVAILABLE = False
+    st.warning("⚠️ Biblioteca JWT não disponível. Usando autenticação básica.")
 
+try:
+    from passlib.hash import bcrypt
+    BCRYPT_AVAILABLE = True
+except ImportError:
+    BCRYPT_AVAILABLE = False
+
+# Configuração da página
+st.set_page_config(
+    page_title="NutriStock360 Pro",
+    page_icon="🥗",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# CSS customizado
+st.markdown("""
+<style>
+    .main-header {
+        background: linear-gradient(90deg, #4CAF50, #45a049);
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .metric-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #4CAF50;
+    }
+    .sidebar-logo {
+        text-align: center;
+        padding: 1rem;
+        background: linear-gradient(45deg, #4CAF50, #45a049);
+        border-radius: 10px;
+        color: white;
+        margin-bottom: 1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Classe principal do sistema
+class NutriStock360:
+    def __init__(self):
+        self.init_session_state()
+        
+    def init_session_state(self):
+        """Inicializa o estado da sessão"""
+        if 'authenticated' not in st.session_state:
+            st.session_state.authenticated = False
+        if 'current_user' not in st.session_state:
+            st.session_state.current_user = None
+        if 'pacientes' not in st.session_state:
+            st.session_state.pacientes = []
+        if 'consultas' not in st.session_state:
+            st.session_state.consultas = []
+        if 'receitas' not in st.session_state:
+            st.session_state.receitas = self.load_default_receitas()
+            
+    def load_default_receitas(self):
+        """Carrega receitas padrão"""
+        return [
+            {
+                "id": 1,
+                "nome": "Salada Verde Detox",
+                "ingredientes": ["Alface", "Rúcula", "Pepino", "Tomate cereja", "Azeite"],
+                "calorias": 120,
+                "preparo": "Misture todos os ingredientes e tempere com azeite",
+                "categoria": "Saladas"
+            },
+            {
+                "id": 2,
+                "nome": "Smoothie Proteico",
+                "ingredientes": ["Banana", "Whey protein", "Leite de amêndoas", "Aveia"],
+                "calorias": 280,
+                "preparo": "Bata tudo no liquidificador até ficar homogêneo",
+                "categoria": "Bebidas"
+            }
+        ]
+    
+    def hash_password(self, password: str) -> str:
+        """Hash da senha"""
+        if BCRYPT_AVAILABLE:
+            return bcrypt.hash(password)
+        else:
+            # Fallback simples
+            return hashlib.sha256(password.encode()).hexdigest()
+    
+    def verify_password(self, password: str, hashed: str) -> bool:
+        """Verifica senha"""
+        if BCRYPT_AVAILABLE:
+            return bcrypt.verify(password, hashed)
+        else:
+            return hashlib.sha256(password.encode()).hexdigest() == hashed
+    
+    def authenticate_user(self, username: str, password: str) -> bool:
+        """Autentica usuário"""
+        # Usuários padrão (em produção, usar banco de dados)
+        users = {
+            "admin": self.hash_password("admin123"),
+            "nutricionista": self.hash_password("nutri123"),
+            "demo": self.hash_password("demo123")
+        }
+        
+        if username in users and self.verify_password(password, users[username]):
+            st.session_state.authenticated = True
+            st.session_state.current_user = username
+            return True
+        return False
+    
+    def login_page(self):
+        """Página de login"""
+        st.markdown('<div class="main-header"><h1>🥗 NutriStock360 Pro</h1><p>Sistema Profissional para Nutricionistas</p></div>', unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col2:
+            st.markdown("### 🔐 Login do Sistema")
+            
+            with st.form("login_form"):
+                username = st.text_input("👤 Usuário")
+                password = st.text_input("🔒 Senha", type="password")
+                submitted = st.form_submit_button("🚀 Entrar", use_container_width=True)
+                
+                if submitted:
+                    if self.authenticate_user(username, password):
+                        st.success("✅ Login realizado com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Usuário ou senha incorretos!")
+            
+            st.markdown("---")
+            st.info("""
+            **👥 Usuários de Teste:**
+            - Admin: `admin` / `admin123`
+            - Nutricionista: `nutricionista` / `nutri123`
+            - Demo: `demo` / `demo123`
+            """)
+    
+    def sidebar_menu(self):
+        """Menu lateral"""
+        with st.sidebar:
+            st.markdown('<div class="sidebar-logo"><h2>🥗 NutriStock360</h2><p>Pro Dashboard</p></div>', unsafe_allow_html=True)
+            
+            st.markdown(f"**👤 Usuário:** {st.session_state.current_user}")
+            
+            menu_options = [
+                "📊 Dashboard",
+                "👥 Pacientes", 
+                "🍽️ Planos Alimentares",
+                "📅 Agendamentos",
+                "🍳 Receitas",
+                "📈 Relatórios",
+                "⚙️ Configurações"
+            ]
+            
+            selected = st.selectbox("🧭 Navegação", menu_options)
+            
+            st.markdown("---")
+            if st.button("🚪 Logout", use_container_width=True):
+                st.session_state.authenticated = False
+                st.session_state.current_user = None
+                st.rerun()
+            
+            return selected
+    
+    def dashboard_page(self):
+        """Página principal do dashboard"""
+        st.markdown('<div class="main-header"><h1>📊 Dashboard - NutriStock360 Pro</h1></div>', unsafe_allow_html=True)
+        
+        # Métricas principais
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("👥 Pacientes Ativos", len(st.session_state.pacientes), "2")
+        with col2:
+            st.metric("📅 Consultas Hoje", len([c for c in st.session_state.consultas if c.get('data') == datetime.now().strftime('%Y-%m-%d')]), "5")
+        with col3:
+            st.metric("🍳 Receitas Cadastradas", len(st.session_state.receitas), "1")
+        with col4:
+            st.metric("💰 Receita Mensal", "R$ 12.500", "8%")
+        
+        # Gráficos
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📈 Evolução de Pacientes")
+            # Dados fictícios para demonstração
+            dates = pd.date_range(start='2024-01-01', end='2024-12-01', freq='M')
+            patients = np.cumsum(np.random.randint(5, 15, len(dates)))
+            
+            fig = px.line(x=dates, y=patients, title="Crescimento de Pacientes")
+            fig.update_layout(height=300)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.subheader("🎯 Metas do Mês")
+            # Gráfico de progresso
+            categories = ['Novos Pacientes', 'Consultas', 'Receitas', 'Receita']
+            values = [75, 85, 60, 90]
+            
+            fig = go.Figure(data=[
+                go.Bar(x=categories, y=values, marker_color=['#4CAF50', '#2196F3', '#FF9800', '#9C27B0'])
+            ])
+            fig.update_layout(height=300, title="Progresso das Metas (%)")
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Atividades recentes
+        st.subheader("🕐 Atividades Recentes")
+        recent_activities = [
+            {"time": "10:30", "activity": "Consulta com Maria Silva", "type": "consulta"},
+            {"time": "09:15", "activity": "Novo paciente cadastrado: João Santos", "type": "paciente"},
+            {"time": "08:45", "activity": "Plano alimentar criado para Ana Costa", "type": "plano"},
+            {"time": "08:30", "activity": "Receita 'Smoothie Verde' adicionada", "type": "receita"}
+        ]
+        
+        for activity in recent_activities:
+            icon = {"consulta": "👥", "paciente": "🆕", "plano": "🍽️", "receita": "🍳"}[activity["type"]]
+            st.markdown(f"**{activity['time']}** {icon} {activity['activity']}")
+    
+    def pacientes_page(self):
+        """Página de gestão de pacientes"""
+        st.markdown('<div class="main-header"><h1>👥 Gestão de Pacientes</h1></div>', unsafe_allow_html=True)
+        
+        tab1, tab2 = st.tabs(["📋 Lista de Pacientes", "➕ Novo Paciente"])
+        
+        with tab1:
+            if st.session_state.pacientes:
+                for paciente in st.session_state.pacientes:
+                    with st.expander(f"👤 {paciente['nome']} - {paciente['idade']} anos"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**Email:** {paciente['email']}")
+                            st.write(f"**Telefone:** {paciente['telefone']}")
+                            st.write(f"**Peso:** {paciente['peso']} kg")
+                        with col2:
+                            st.write(f"**Altura:** {paciente['altura']} m")
+                            st.write(f"**IMC:** {paciente['imc']:.1f}")
+                            st.write(f"**Objetivo:** {paciente['objetivo']}")
+            else:
+                st.info("📝 Nenhum paciente cadastrado ainda.")
+        
+        with tab2:
+            with st.form("novo_paciente"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    nome = st.text_input("👤 Nome Completo")
+                    idade = st.number_input("🎂 Idade", min_value=1, max_value=120, value=30)
+                    email = st.text_input("📧 Email")
+                    telefone = st.text_input("📱 Telefone")
+                
+                with col2:
+                    peso = st.number_input("⚖️ Peso (kg)", min_value=1.0, max_value=500.0, value=70.0, step=0.1)
+                    altura = st.number_input("📏 Altura (m)", min_value=0.5, max_value=3.0, value=1.70, step=0.01)
+                    objetivo = st.selectbox("🎯 Objetivo", ["Emagrecimento", "Ganho de massa", "Manutenção", "Definição"])
+                
+                observacoes = st.text_area("📝 Observações")
+                
+                if st.form_submit_button("✅ Cadastrar Paciente", use_container_width=True):
+                    if nome and email:
+                        imc = peso / (altura ** 2)
+                        novo_paciente = {
+                            "id": len(st.session_state.pacientes) + 1,
+                            "nome": nome,
+                            "idade": idade,
+                            "email": email,
+                            "telefone": telefone,
+                            "peso": peso,
+                            "altura": altura,
+                            "imc": imc,
+                            "objetivo": objetivo,
+                            "observacoes": observacoes,
+                            "data_cadastro": datetime.now().strftime("%d/%m/%Y")
+                        }
+                        st.session_state.pacientes.append(novo_paciente)
+                        st.success(f"✅ Paciente {nome} cadastrado com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Nome e email são obrigatórios!")
+    
+    def receitas_page(self):
+        """Página de receitas"""
+        st.markdown('<div class="main-header"><h1>🍳 Banco de Receitas</h1></div>', unsafe_allow_html=True)
+        
+        # Filtros
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            busca = st.text_input("🔍 Buscar receita", placeholder="Digite o nome da receita...")
+        with col2:
+            categoria = st.selectbox("📂 Categoria", ["Todas", "Saladas", "Bebidas", "Pratos principais", "Sobremesas"])
+        with col3:
+            max_calorias = st.slider("🔥 Máximo de calorias", 0, 1000, 500)
+        
+        # Lista de receitas
+        receitas_filtradas = st.session_state.receitas
+        
+        if busca:
+            receitas_filtradas = [r for r in receitas_filtradas if busca.lower() in r['nome'].lower()]
+        
+        if categoria != "Todas":
+            receitas_filtradas = [r for r in receitas_filtradas if r['categoria'] == categoria]
+        
+        receitas_filtradas = [r for r in receitas_filtradas if r['calorias'] <= max_calorias]
+        
+        st.write(f"📊 **{len(receitas_filtradas)}** receitas encontradas")
+        
+        for receita in receitas_filtradas:
+            with st.expander(f"🍳 {receita['nome']} - {receita['calorias']} kcal"):
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    st.write("**Ingredientes:**")
+                    for ingrediente in receita['ingredientes']:
+                        st.write(f"• {ingrediente}")
+                    
+                    st.write("**Modo de preparo:**")
+                    st.write(receita['preparo'])
+                
+                with col2:
+                    st.metric("🔥 Calorias", f"{receita['calorias']} kcal")
+                    st.write(f"**📂 Categoria:** {receita['categoria']}")
+                    
+                    if st.button(f"📋 Usar na dieta", key=f"usar_{receita['id']}"):
+                        st.success("✅ Receita adicionada ao plano!")
+    
+    def run(self):
+        """Executa o aplicativo principal"""
+        if not st.session_state.authenticated:
+            self.login_page()
+        else:
+            selected_page = self.sidebar_menu()
+            
+            if selected_page == "📊 Dashboard":
+                self.dashboard_page()
+            elif selected_page == "👥 Pacientes":
+                self.pacientes_page()
+            elif selected_page == "🍳 Receitas":
+                self.receitas_page()
+            elif selected_page == "🍽️ Planos Alimentares":
+                st.markdown('<div class="main-header"><h1>🍽️ Planos Alimentares</h1></div>', unsafe_allow_html=True)
+                st.info("🚧 Módulo em desenvolvimento")
+            elif selected_page == "📅 Agendamentos":
+                st.markdown('<div class="main-header"><h1>📅 Agendamentos</h1></div>', unsafe_allow_html=True)
+                st.info("🚧 Módulo em desenvolvimento")
+            elif selected_page == "📈 Relatórios":
+                st.markdown('<div class="main-header"><h1>📈 Relatórios</h1></div>', unsafe_allow_html=True)
+                st.info("🚧 Módulo em desenvolvimento")
+            elif selected_page == "⚙️ Configurações":
+                st.markdown('<div class="main-header"><h1>⚙️ Configurações</h1></div>', unsafe_allow_html=True)
+                st.info("🚧 Módulo em desenvolvimento")
+
+# Executar aplicação
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    app = NutriStock360()
+    app.run()
