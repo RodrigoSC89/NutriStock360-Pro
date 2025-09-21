@@ -5,12 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import json
-import base64
 import hashlib
 import time
-import io
-import uuid
-from typing import Dict, List, Optional
 
 # Importações opcionais com tratamento de erro
 try:
