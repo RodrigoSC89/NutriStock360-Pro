@@ -384,12 +384,18 @@ class NutriStock360Pro:
             st.markdown('<div class="tab-content">', unsafe_allow_html=True)
             st.subheader("📈 Evolução de Pacientes")
             
-            # Dados fictícios
-            dates = pd.date_range(start='2024-01-01', end='2024-12-01', freq='M')
-            base_patients = [10, 15, 18, 25, 32, 38, 45, 52, 58, 65, 72, total_pacientes or 78]
-            patients_data = pd.DataFrame({'Data': dates, 'Pacientes': base_patients})
+            # Dados fictícios - corrigido para garantir mesmo tamanho
+            meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+            base_patients = [10, 15, 18, 25, 32, 38, 45, 52, 58, 65, 72, max(total_pacientes, 78)]
             
-            fig = px.line(patients_data, x='Data', y='Pacientes', 
+            # Garantir que ambos tenham o mesmo tamanho
+            if len(meses) != len(base_patients):
+                base_patients = base_patients[:len(meses)]
+            
+            patients_data = pd.DataFrame({'Mês': meses, 'Pacientes': base_patients})
+            
+            fig = px.line(patients_data, x='Mês', y='Pacientes', 
                          title="Crescimento de Pacientes 2024",
                          color_discrete_sequence=['#667eea'])
             fig.update_layout(height=350)
