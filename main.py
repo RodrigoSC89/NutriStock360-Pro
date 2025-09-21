@@ -315,15 +315,6 @@ st.markdown("""
         transform: translateX(100%);
     }
     
-    /* Gauge charts styling */
-    .gauge-container {
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 20px;
-        padding: 1rem;
-        margin: 1rem 0;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    
     /* Input fields */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
@@ -358,84 +349,6 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 0.5px;
         font-weight: 500;
-    }
-    
-    /* Loading animations */
-    .loading-spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #667eea;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* Tooltip */
-    .tooltip {
-        position: relative;
-        display: inline-block;
-        cursor: help;
-    }
-    
-    .tooltip .tooltiptext {
-        visibility: hidden;
-        width: 200px;
-        background-color: #555;
-        color: #fff;
-        text-align: center;
-        border-radius: 6px;
-        padding: 5px;
-        position: absolute;
-        z-index: 1;
-        bottom: 125%;
-        left: 50%;
-        margin-left: -100px;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-    
-    .tooltip:hover .tooltiptext {
-        visibility: visible;
-        opacity: 1;
-    }
-    
-    /* Responsive design */
-    @media (max-width: 768px) {
-        .main-header {
-            padding: 2rem 1rem;
-        }
-        
-        .main-header h1 {
-            font-size: 2rem;
-        }
-        
-        .metric-card {
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .tab-content {
-            padding: 1.5rem;
-        }
-    }
-    
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-        .tab-content {
-            background: rgba(45, 55, 72, 0.95);
-            color: white;
-        }
-        
-        .metric-card {
-            background: rgba(45, 55, 72, 0.95);
-            color: white;
-        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -689,22 +602,6 @@ class NutriStock360Pro:
                 "dificuldade": "Fácil",
                 "porcoes": 1,
                 "custo_estimado": 6.80
-            },
-            {
-                "id": 3,
-                "nome": "Salada Mediterrânea",
-                "ingredientes": ["Mix de folhas (100g)", "Tomate cereja (100g)", "Pepino (50g)", "Queijo feta (30g)", "Azeitonas (20g)", "Azeite extra virgem (1 colher)"],
-                "calorias": 245,
-                "proteinas": 12,
-                "carboidratos": 15,
-                "gorduras": 18,
-                "fibras": 6,
-                "preparo": "Misture todos os vegetais. Adicione o queijo em cubos e as azeitonas. Tempere com azeite e ervas.",
-                "categoria": "Saladas",
-                "tempo_preparo": "10 minutos",
-                "dificuldade": "Fácil",
-                "porcoes": 1,
-                "custo_estimado": 8.90
             }
         ]
     
@@ -797,40 +694,6 @@ class NutriStock360Pro:
         fig.update_layout(
             height=300,
             font={'color': "darkblue", 'family': "Arial"},
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)"
-        )
-        
-        return fig
-    
-    def create_progress_chart(self, dates, weights, target_weight):
-        """Cria gráfico de progresso de peso"""
-        fig = go.Figure()
-        
-        # Linha de progresso
-        fig.add_trace(go.Scatter(
-            x=dates,
-            y=weights,
-            mode='lines+markers',
-            name='Peso Atual',
-            line=dict(color='#667eea', width=3),
-            marker=dict(size=8, color='#f093fb')
-        ))
-        
-        # Linha de meta
-        fig.add_hline(
-            y=target_weight,
-            line_dash="dash",
-            line_color="green",
-            annotation_text=f"Meta: {target_weight} kg"
-        )
-        
-        fig.update_layout(
-            title="Evolução do Peso",
-            xaxis_title="Data",
-            yaxis_title="Peso (kg)",
-            height=400,
-            showlegend=True,
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)"
         )
@@ -945,16 +808,7 @@ class NutriStock360Pro:
             # Menu principal expandido
             menu_options = [
                 "📊 Dashboard Executivo",
-                "🧮 Calculadoras Profissionais", 
-                "👥 Gestão de Pacientes",
-                "📈 Evolução & Progresso",
-                "🍽️ Planos Alimentares",
-                "🍳 Banco de Receitas",
-                "📅 Agendamentos",
-                "📊 Relatórios Avançados",
-                "💬 Comunicação",
-                "🎯 Metas & Objetivos",
-                "⚙️ Configurações"
+                "🧮 Calculadoras Profissionais"
             ]
             
             selected = st.selectbox("🧭 Navegação Principal", menu_options, key="main_menu")
@@ -984,56 +838,6 @@ class NutriStock360Pro:
             </div>
             """, unsafe_allow_html=True)
             
-            st.markdown(f"""
-            <div style="background: #48bb7815; padding: 1rem; border-radius: 10px; margin: 0.5rem 0; border-left: 4px solid #48bb78;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="color: #48bb78; font-weight: 600;">📅 Hoje</div>
-                    <div style="color: #48bb78; font-size: 1.2rem; font-weight: 700;">{consultas_hoje}</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            <div style="background: #ed893615; padding: 1rem; border-radius: 10px; margin: 0.5rem 0; border-left: 4px solid #ed8936;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="color: #ed8936; font-weight: 600;">🍳 Receitas</div>
-                    <div style="color: #ed8936; font-size: 1.2rem; font-weight: 700;">{receitas_total}</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Ações rápidas melhoradas
-            st.markdown("---")
-            st.markdown("**⚡ Ações Rápidas**")
-            
-            if st.button("➕ Novo Paciente", use_container_width=True, key="quick_patient"):
-                st.success("Redirecionando para cadastro...")
-                time.sleep(0.5)
-            
-            if st.button("📅 Agendar Consulta", use_container_width=True, key="quick_schedule"):
-                st.success("Abrindo agenda...")
-                time.sleep(0.5)
-            
-            if st.button("🧮 Calculadoras", use_container_width=True, key="quick_calc"):
-                st.success("Acessando calculadoras...")
-                time.sleep(0.5)
-            
-            # Status do sistema expandido
-            st.markdown("---")
-            st.markdown("**🔧 Status do Sistema**")
-            
-            uptime = "99.9%"
-            last_backup = datetime.now().strftime("%H:%M")
-            
-            st.markdown(f"""
-            <div style="background: #48bb7815; padding: 1rem; border-radius: 10px; border-left: 4px solid #48bb78;">
-                <div style="color: #48bb78; font-weight: 600; margin-bottom: 0.5rem;">✅ Sistema Online</div>
-                <div style="color: #718096; font-size: 0.8rem;">Uptime: {uptime}</div>
-                <div style="color: #718096; font-size: 0.8rem;">Último backup: {last_backup}</div>
-                <div style="color: #718096; font-size: 0.8rem;">Todos os módulos funcionando</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
             st.markdown("---")
             if st.button("🚪 Logout Seguro", use_container_width=True, type="primary"):
                 st.session_state.authenticated = False
@@ -1045,276 +849,32 @@ class NutriStock360Pro:
             return selected
     
     def dashboard_page(self):
-        """Dashboard executivo melhorado"""
-        st.markdown('<div class="main-header"><h1>📊 Dashboard Executivo Interativo</h1><p>Visão 360° da sua prática nutricional em tempo real</p></div>', unsafe_allow_html=True)
+        """Dashboard executivo básico"""
+        st.markdown('<div class="main-header"><h1>📊 Dashboard Executivo</h1><p>Visão geral da sua prática nutricional</p></div>', unsafe_allow_html=True)
         
-        # KPIs principais melhorados
-        st.markdown("### 📈 Indicadores-Chave de Performance")
+        st.info("Dashboard em desenvolvimento - acesse as Calculadoras Profissionais no menu lateral")
         
+        # KPIs básicos
         col1, col2, col3, col4 = st.columns(4)
         
-        total_pacientes = len(st.session_state.pacientes)
-        consultas_hoje = len([a for a in st.session_state.agendamentos if a.get('data') == datetime.now().strftime('%Y-%m-%d')])
-        receita_mensal = sum([a.get('valor', 0) for a in st.session_state.agendamentos if a.get('status') == 'Realizado'])
-        taxa_retorno = 85.5  # Simulado
-        
-        # Cálculo de tendências
-        crescimento_pacientes = "+12%"
-        crescimento_consultas = "+8%"
-        crescimento_receita = "+15%"
-        
         with col1:
-            st.markdown(f'''
-            <div class="metric-card">
-                <div style="text-align: center;">
-                    <div class="metric-value">{total_pacientes}</div>
-                    <div class="metric-label">Pacientes Ativos</div>
-                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 {crescimento_pacientes}</div>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-            
+            st.metric("Pacientes", len(st.session_state.pacientes), "+2")
         with col2:
-            st.markdown(f'''
-            <div class="metric-card">
-                <div style="text-align: center;">
-                    <div class="metric-value">{consultas_hoje}</div>
-                    <div class="metric-label">Consultas Hoje</div>
-                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 {crescimento_consultas}</div>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-            
+            st.metric("Consultas Hoje", 0, "0")
         with col3:
-            st.markdown(f'''
-            <div class="metric-card">
-                <div style="text-align: center;">
-                    <div class="metric-value">R$ {receita_mensal:,.0f}</div>
-                    <div class="metric-label">Receita Mensal</div>
-                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 {crescimento_receita}</div>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-            
+            st.metric("Receita Mensal", "R$ 0", "R$ 0")
         with col4:
-            st.markdown(f'''
-            <div class="metric-card">
-                <div style="text-align: center;">
-                    <div class="metric-value">{taxa_retorno}%</div>
-                    <div class="metric-label">Taxa de Retorno</div>
-                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 +2.3%</div>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-        
-        # Gráficos analíticos avançados
-        st.markdown("### 📊 Analytics Visuais Avançados")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-            st.subheader("📈 Evolução de Pacientes & Receita")
-            
-            # Dados mais realistas com crescimento orgânico
-            meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
-                    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-            pacientes_data = [8, 12, 15, 22, 28, 35, 42, 48, 55, 62, 68, max(total_pacientes, 75)]
-            receita_data = [p * 150 * 0.8 for p in pacientes_data]  # Assumindo 80% de conversão
-            
-            fig = go.Figure()
-            
-            # Linha de pacientes
-            fig.add_trace(go.Scatter(
-                x=meses, 
-                y=pacientes_data,
-                mode='lines+markers',
-                name='Pacientes',
-                line=dict(color='#667eea', width=3),
-                marker=dict(size=8, color='#f093fb'),
-                yaxis='y'
-            ))
-            
-            # Linha de receita
-            fig.add_trace(go.Scatter(
-                x=meses,
-                y=receita_data,
-                mode='lines+markers',
-                name='Receita (R$)',
-                line=dict(color='#48bb78', width=3),
-                marker=dict(size=8, color='#ed8936'),
-                yaxis='y2'
-            ))
-            
-            fig.update_layout(
-                title="Crescimento do Negócio 2024",
-                xaxis_title="Meses",
-                yaxis=dict(title="Número de Pacientes", side="left", color="#667eea"),
-                yaxis2=dict(title="Receita (R$)", side="right", overlaying="y", color="#48bb78"),
-                height=400,
-                hovermode='x unified',
-                paper_bgcolor="rgba(0,0,0,0)"
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-            st.subheader("🎯 Performance vs Metas")
-            
-            # Dados de performance vs metas
-            categorias = ['Novos Pacientes', 'Consultas', 'Receita', 'Retenção', 'Satisfação']
-            valores_atuais = [85, 92, 78, 88, 95]
-            metas = [80, 90, 85, 85, 90]
-            
-            fig = go.Figure()
-            
-            # Barras das metas
-            fig.add_trace(go.Bar(
-                name='Meta',
-                x=categorias,
-                y=metas,
-                marker_color='lightgray',
-                opacity=0.6
-            ))
-            
-            # Barras dos valores atuais
-            fig.add_trace(go.Bar(
-                name='Atual',
-                x=categorias,
-                y=valores_atuais,
-                marker_color=['#667eea', '#48bb78', '#ed8936', '#f093fb', '#9f7aea'],
-                text=valores_atuais,
-                textposition='auto'
-            ))
-            
-            fig.update_layout(
-                title="Performance vs Metas (%)",
-                barmode='overlay',
-                height=400,
-                paper_bgcolor="rgba(0,0,0,0)"
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Seção de insights e recomendações
-        st.markdown("### 💡 Insights Inteligentes & Recomendações")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            <div class="calculator-card">
-                <h4 style="color: #667eea; margin-bottom: 1rem;">🚀 Oportunidades</h4>
-                <div style="line-height: 1.6;">
-                    • <strong>Horário nobre:</strong> 14h-16h com 23% mais agendamentos<br>
-                    • <strong>Perfil ideal:</strong> Mulheres 25-40 anos (78% conversão)<br>
-                    • <strong>Serviço premium:</strong> Planos personalizados +R$ 200/mês<br>
-                    • <strong>Referências:</strong> 34% dos novos pacientes vêm de indicações
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("""
-            <div class="calculator-card">
-                <h4 style="color: #48bb78; margin-bottom: 1rem;">📊 Tendências</h4>
-                <div style="line-height: 1.6;">
-                    • <strong>Emagrecimento:</strong> 65% dos objetivos (crescimento 8%)<br>
-                    • <strong>Consultas online:</strong> 40% do total (tendência crescente)<br>
-                    • <strong>Retenção:</strong> Pacientes ficam em média 4.2 meses<br>
-                    • <strong>Melhor dia:</strong> Terças-feiras (92% comparecimento)
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown("""
-            <div class="calculator-card">
-                <h4 style="color: #ed8936; margin-bottom: 1rem;">🎯 Ações Recomendadas</h4>
-                <div style="line-height: 1.6;">
-                    • <strong>Marketing:</strong> Foque no Instagram (maior conversão)<br>
-                    • <strong>Preços:</strong> Considere reajuste de 8% (abaixo do mercado)<br>
-                    • <strong>Capacidade:</strong> Contrate assistente (90% capacidade)<br>
-                    • <strong>Tecnologia:</strong> App móvel aumentaria retenção em 15%
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Agenda do dia e próximos compromissos
-        st.markdown("### 📅 Agenda & Compromissos")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-            st.subheader("📋 Agenda de Hoje")
-            
-            hoje = datetime.now().strftime('%Y-%m-%d')
-            agendamentos_hoje = [a for a in st.session_state.agendamentos if a.get('data') == hoje]
-            
-            if agendamentos_hoje:
-                agendamentos_hoje.sort(key=lambda x: x['horario'])
-                
-                for apt in agendamentos_hoje:
-                    status_color = {
-                        "Agendado": "#667eea",
-                        "Realizado": "#48bb78", 
-                        "Cancelado": "#e53e3e",
-                        "Em andamento": "#ed8936"
-                    }.get(apt.get('status', 'Agendado'), '#718096')
-                    
-                    st.markdown(f"""
-                    <div style="background: {status_color}15; padding: 1rem; border-radius: 10px; margin: 0.5rem 0; border-left: 4px solid {status_color};">
-                        <div style="color: {status_color}; font-weight: 600;">
-                            🕐 {apt['horario']} - {apt['paciente']}
-                        </div>
-                        <div style="color: #718096; font-size: 0.9rem;">
-                            📋 {apt['tipo']} • {apt.get('status', 'Agendado')}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.info("📅 Nenhum agendamento para hoje. Aproveite para planejamento!")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-            st.subheader("🔔 Lembretes & Notificações")
-            
-            # Lembretes inteligentes
-            lembretes = [
-                {"tipo": "urgent", "icon": "🚨", "texto": "Consulta em 30 min: Maria Silva (primeira consulta)", "cor": "#e53e3e"},
-                {"tipo": "important", "icon": "📞", "texto": "Retornar ligação: João Santos (interessado em plano)", "cor": "#ed8936"},
-                {"tipo": "info", "icon": "📊", "texto": "Relatório mensal pronto para envio", "cor": "#3182ce"},
-                {"tipo": "success", "icon": "🎉", "texto": "Meta de pacientes atingida: 75/70", "cor": "#48bb78"},
-                {"tipo": "reminder", "icon": "💊", "texto": "Atualizar conhecimento: Novo curso de nutrição esportiva", "cor": "#9f7aea"}
-            ]
-            
-            for lembrete in lembretes:
-                st.markdown(f"""
-                <div style="background: {lembrete['cor']}15; padding: 1rem; border-radius: 10px; margin: 0.5rem 0; border-left: 4px solid {lembrete['cor']};">
-                    <div style="color: {lembrete['cor']}; font-weight: 600;">
-                        {lembrete['icon']} {lembrete['texto']}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.metric("Taxa Retorno", "85%", "+2%")
 
     def calculadoras_page(self):
         """Calculadoras profissionais completas"""
         st.markdown('<div class="main-header"><h1>🧮 Calculadoras Nutricionais Profissionais</h1><p>Suite completa com 15+ fórmulas científicas validadas</p></div>', unsafe_allow_html=True)
         
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        tab1, tab2, tab3, tab4 = st.tabs([
             "📏 Básicas", 
             "🔥 Metabólicas", 
             "📊 Composição Corporal", 
-            "🎯 Planejamento", 
-            "⚡ Ferramentas Pro"
+            "🎯 Planejamento"
         ])
         
         with tab1:
@@ -1328,9 +888,6 @@ class NutriStock360Pro:
         
         with tab4:
             self.calculadoras_planejamento()
-        
-        with tab5:
-            self.ferramentas_profissionais()
     
     def calculadoras_basicas(self):
         """Calculadoras básicas melhoradas"""
@@ -1483,10 +1040,7 @@ class NutriStock360Pro:
             st.subheader("⚡ Gasto Energético Total & Macros")
             
             # Usar TMB calculada ou permitir input manual
-            if 'tmb_media' in locals():
-                tmb_base = tmb_media
-            else:
-                tmb_base = 1500
+            tmb_base = 1500
             
             st.info(f"TMB base: {tmb_base:.0f} kcal/dia")
             
@@ -1554,7 +1108,7 @@ class NutriStock360Pro:
             for nome, gramas, percent, cor in macros_data:
                 st.markdown(f'''
                 <div style="background: {cor}15; padding: 1rem; border-radius: 10px; margin: 0.5rem 0; border-left: 4px solid {cor};">
-                    <div style="display: flex; justify-content: between; align-items: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="color: {cor}; font-weight: 600;">{nome}</div>
                         <div style="color: {cor}; font-weight: 700;">{gramas:.0f}g ({percent}%)</div>
                     </div>
@@ -1624,14 +1178,6 @@ class NutriStock360Pro:
                 massa_gorda = peso_comp * (bf_percent / 100)
                 massa_magra = peso_comp - massa_gorda
                 
-                # Relação cintura-quadril
-                if quadril:
-                    rcq = cintura / quadril
-                    rcq_ideal = rcq < 0.8
-                else:
-                    rcq = cintura / 100  # Relação cintura-altura para homens
-                    rcq_ideal = rcq < 0.5
-                
                 # Resultados visuais
                 st.markdown(f'''
                 <div class="calculator-result">
@@ -1670,18 +1216,6 @@ class NutriStock360Pro:
                     </div>
                     ''', unsafe_allow_html=True)
                 
-                # RCQ
-                rcq_status = "Ideal" if rcq_ideal else "Atenção"
-                rcq_color = "#48bb78" if rcq_ideal else "#ed8936"
-                
-                st.markdown(f'''
-                <div style="background: {rcq_color}15; padding: 1rem; border-radius: 10px; border-left: 4px solid {rcq_color};">
-                    <div style="color: {rcq_color}; font-weight: 600;">
-                        📏 RCQ: {rcq:.2f} - {rcq_status}
-                    </div>
-                </div>
-                ''', unsafe_allow_html=True)
-                
             else:
                 st.error(f"❌ {bf_result[1]}")
             
@@ -1696,7 +1230,10 @@ class NutriStock360Pro:
                 # Dados simulados de evolução
                 semanas = list(range(0, 25, 2))
                 peso_evolucao = [peso_comp - (i * 0.3) for i in range(len(semanas))]
-                bf_evolucao = [bf_percent - (i * 0.5) for i in range(len(semanas))]
+                if 'bf_percent' in locals():
+                    bf_evolucao = [bf_percent - (i * 0.5) for i in range(len(semanas))]
+                else:
+                    bf_evolucao = [25 - (i * 0.5) for i in range(len(semanas))]
                 
                 # Gráfico de evolução
                 fig = go.Figure()
@@ -1738,7 +1275,7 @@ class NutriStock360Pro:
                 peso_final = peso_evolucao[-1]
                 bf_final = bf_evolucao[-1]
                 perda_peso = peso_comp - peso_final
-                reducao_bf = bf_percent - bf_final
+                reducao_bf = (bf_evolucao[0] if 'bf_percent' not in locals() else bf_percent) - bf_final
                 
                 st.success(f"""
                 **Projeção para 6 meses:**
@@ -1747,40 +1284,6 @@ class NutriStock360Pro:
                 - Peso final: {peso_final:.1f} kg
                 - % Gordura final: {bf_final:.1f}%
                 """)
-            
-            # Recomendações personalizadas
-            st.markdown("**💡 Recomendações Personalizadas:**")
-            
-            if 'bf_percent' in locals():
-                recomendacoes = []
-                
-                if bf_percent > 25 and sexo_comp == "Masculino":
-                    recomendacoes.append("🔥 Foque em déficit calórico moderado (300-500 kcal)")
-                    recomendacoes.append("🏃 Adicione cardio 4-5x por semana")
-                    recomendacoes.append("🥩 Aumente proteína para 2g/kg")
-                
-                elif bf_percent > 32 and sexo_comp == "Feminino":
-                    recomendacoes.append("🔥 Déficit calórico controlado (250-400 kcal)")
-                    recomendacoes.append("💪 Treino de força 3x por semana")
-                    recomendacoes.append("🥗 Dieta rica em fibras e proteínas")
-                
-                elif bf_percent < 10 and sexo_comp == "Masculino":
-                    recomendacoes.append("⚠️ Monitore sinais de overtraining")
-                    recomendacoes.append("🍽️ Considere aumento calórico gradual")
-                    recomendacoes.append("🏥 Acompanhamento médico recomendado")
-                
-                elif bf_percent < 16 and sexo_comp == "Feminino":
-                    recomendacoes.append("⚠️ Atenção à saúde hormonal")
-                    recomendacoes.append("🍽️ Evite déficits calóricos extremos")
-                    recomendacoes.append("🩺 Considere avaliação médica")
-                
-                else:
-                    recomendacoes.append("✅ Composição corporal saudável")
-                    recomendacoes.append("💪 Mantenha treinos regulares")
-                    recomendacoes.append("🥗 Continue alimentação equilibrada")
-                
-                for rec in recomendacoes:
-                    st.info(rec)
             
             st.markdown('</div>', unsafe_allow_html=True)
         
@@ -1803,4 +1306,183 @@ class NutriStock360Pro:
             
             # Metas
             st.markdown("**🎯 Metas Desejadas**")
-            peso_meta = st.number_input("🎯 Peso meta
+            peso_meta = st.number_input("🎯 Peso meta (kg)", min_value=30.0, max_value=200.0, value=75.0)
+            bf_meta = st.number_input("📊 % Gordura meta", min_value=5.0, max_value=50.0, value=18.0)
+            
+            # Preferências
+            st.markdown("**⚙️ Preferências**")
+            velocidade = st.selectbox("⚡ Velocidade do processo", [
+                ("conservador", "Conservador (0.25kg/semana)"),
+                ("moderado", "Moderado (0.5kg/semana)"),
+                ("acelerado", "Acelerado (0.75kg/semana)"),
+                ("intensivo", "Intensivo (1kg/semana)")
+            ], format_func=lambda x: x[1])
+            
+            if st.button("🚀 Calcular Planejamento", type="primary"):
+                # Cálculos do planejamento
+                diferenca_peso = peso_atual - peso_meta
+                diferenca_bf = bf_atual - bf_meta
+                
+                velocidades = {
+                    "conservador": 0.25,
+                    "moderado": 0.5,
+                    "acelerado": 0.75,
+                    "intensivo": 1.0
+                }
+                
+                peso_semana = velocidades[velocidade[0]]
+                tempo_semanas = abs(diferenca_peso) / peso_semana
+                tempo_meses = tempo_semanas / 4.33
+                
+                # Cálculo de déficit calórico necessário
+                deficit_calorico = peso_semana * 7700 / 7  # kcal por dia
+                
+                st.markdown(f'''
+                <div class="calculator-result">
+                    Tempo estimado: {tempo_meses:.1f} meses ({tempo_semanas:.0f} semanas)
+                </div>
+                ''', unsafe_allow_html=True)
+                
+                # Detalhamento do plano
+                plano_data = [
+                    ("⏰ Duração total", f"{tempo_meses:.1f} meses", "#667eea"),
+                    ("📉 Perda semanal", f"{peso_semana:.2f} kg", "#48bb78"),
+                    ("🔥 Déficit diário", f"{deficit_calorico:.0f} kcal", "#ed8936"),
+                    ("📊 Redução BF", f"{diferenca_bf:.1f}%", "#9f7aea")
+                ]
+                
+                for label, valor, cor in plano_data:
+                    st.markdown(f'''
+                    <div style="background: {cor}15; padding: 1rem; border-radius: 10px; margin: 0.5rem 0; border-left: 4px solid {cor};">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="color: {cor}; font-weight: 600;">{label}</div>
+                            <div style="color: {cor}; font-weight: 700;">{valor}</div>
+                        </div>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                
+                # Cronograma de marcos
+                st.markdown("**📅 Marcos do Progresso:**")
+                
+                marcos = []
+                for i in range(1, int(tempo_meses) + 1):
+                    peso_marco = peso_atual - (diferenca_peso * i / tempo_meses)
+                    bf_marco = bf_atual - (diferenca_bf * i / tempo_meses)
+                    marcos.append(f"Mês {i}: {peso_marco:.1f} kg ({bf_marco:.1f}% BF)")
+                
+                for marco in marcos[:6]:  # Mostrar apenas os primeiros 6 meses
+                    st.info(marco)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown('<div class="calculator-card">', unsafe_allow_html=True)
+            st.subheader("📊 Análise de Viabilidade")
+            
+            # Fatores que afetam o sucesso
+            st.markdown("**🎯 Fatores de Sucesso**")
+            
+            aderencia = st.slider("📈 Aderência à dieta (%)", min_value=50, max_value=100, value=85)
+            exercicio = st.slider("💪 Frequência de exercícios (/semana)", min_value=0, max_value=7, value=4)
+            sono = st.slider("😴 Qualidade do sono (1-10)", min_value=1, max_value=10, value=7)
+            stress = st.slider("😰 Nível de stress (1-10)", min_value=1, max_value=10, value=5)
+            
+            # Cálculo do índice de sucesso
+            indice_sucesso = (aderencia * 0.4 + exercicio * 10 * 0.25 + sono * 10 * 0.2 + (10 - stress) * 10 * 0.15)
+            
+            # Classificação do índice
+            if indice_sucesso >= 85:
+                sucesso_status = "Excelente"
+                sucesso_cor = "#48bb78"
+            elif indice_sucesso >= 70:
+                sucesso_status = "Bom"
+                sucesso_cor = "#667eea"
+            elif indice_sucesso >= 55:
+                sucesso_status = "Moderado"
+                sucesso_cor = "#ed8936"
+            else:
+                sucesso_status = "Desafiador"
+                sucesso_cor = "#e53e3e"
+            
+            st.markdown(f'''
+            <div style="background: {sucesso_cor}15; padding: 2rem; border-radius: 15px; text-align: center; border: 2px solid {sucesso_cor};">
+                <div style="color: {sucesso_cor}; font-weight: 700; font-size: 1.5rem;">
+                    Índice de Sucesso: {indice_sucesso:.0f}%
+                </div>
+                <div style="color: {sucesso_cor}; font-weight: 600; margin-top: 0.5rem;">
+                    Prognóstico: {sucesso_status}
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            # Recomendações personalizadas
+            st.markdown("**💡 Recomendações Personalizadas:**")
+            
+            recomendacoes = []
+            
+            if aderencia < 80:
+                recomendacoes.append("🍽️ Melhore a aderência com refeições mais prazerosas")
+            
+            if exercicio < 3:
+                recomendacoes.append("💪 Aumente a frequência de exercícios para pelo menos 3x/semana")
+            
+            if sono < 7:
+                recomendacoes.append("😴 Priorize 7-9 horas de sono por noite")
+            
+            if stress > 6:
+                recomendacoes.append("🧘 Implemente técnicas de redução de stress")
+            
+            if not recomendacoes:
+                recomendacoes.append("✅ Excelente! Mantenha os hábitos atuais")
+                recomendacoes.append("🎯 Foque na consistência e progressão gradual")
+                recomendacoes.append("📊 Monitore o progresso semanalmente")
+            
+            for rec in recomendacoes:
+                st.info(rec)
+            
+            # Gráfico de fatores
+            if st.button("📊 Visualizar Análise", type="secondary"):
+                fatores = ['Aderência', 'Exercício', 'Sono', 'Stress (inv.)']
+                valores = [aderencia, exercicio * 10, sono * 10, (10 - stress) * 10]
+                
+                fig = go.Figure(data=go.Scatterpolar(
+                    r=valores,
+                    theta=fatores,
+                    fill='toself',
+                    fillcolor='rgba(102, 126, 234, 0.2)',
+                    line=dict(color='#667eea', width=2)
+                ))
+                
+                fig.update_layout(
+                    polar=dict(
+                        radialaxis=dict(
+                            visible=True,
+                            range=[0, 100]
+                        )),
+                    showlegend=False,
+                    title="Análise de Fatores de Sucesso",
+                    height=400
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    def run(self):
+        """Executa a aplicação"""
+        if not st.session_state.authenticated:
+            self.login_page()
+        else:
+            selected_page = self.sidebar_menu()
+            
+            if selected_page == "📊 Dashboard Executivo":
+                self.dashboard_page()
+            elif selected_page == "🧮 Calculadoras Profissionais":
+                self.calculadoras_page()
+
+# Executar aplicação
+if __name__ == "__main__":
+    app = NutriStock360Pro()
+    app.run()
