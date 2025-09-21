@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriStock360 - Sistema para Nutricionistas</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #10b981;
+            --accent-color: #8b5cf6;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --light-gray: #f8fafc;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: var(--success-color);
+            color: white;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-title {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-description {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin: 20px 0;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            color: var(--text-secondary);
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            color: var(--success-color);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .api-info {
+            background: var(--light-gray);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .calculator-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .calc-card {
+            background: var(--light-gray);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid var(--border-color);
+        }
+
+        .calc-title {
+            color: var(--primary-color);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .result {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            border: 2px solid var(--border-color);
+        }
+
+        .result.success {
+            background: #d1fae5;
+            color: #065f46;
+            border-color: var(--success-color);
+        }
+
+        .result.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-color: var(--warning-color);
+        }
+
+        .result.danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: var(--danger-color);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🍎 NutriStock360</h1>
+            <p>Sistema Completo para Nutricionistas</p>
+            <div class="status-badge" id="status">Sistema Online</div>
+        </div>
+
+        <!-- Main Cards -->
+        <div class="cards-grid">
+            <!-- API Documentation -->
+            <div class="card">
+                <h3 class="card-title">📚 Documentação da API</h3>
+                <p class="card-description">
+                    Acesse a documentação completa da API com todos os endpoints disponíveis.
+                </p>
+                <a href="/docs" class="btn btn-primary" target="_blank">Ver Documentação</a>
+            </div>
+
+            <!-- System Features -->
+            <div class="card">
+                <h3 class="card-title">⚡ Funcionalidades</h3>
+                <ul class="feature-list">
+                    <li>Sistema multiusuário com autenticação</li>
+                    <li>Gestão completa de pacientes</li>
+                    <li>Base de alimentos brasileiros</li>
+                    <li>Planos alimentares personalizados</li>
+                    <li>Agenda de consultas</li>
+                    <li>Dashboard com métricas</li>
+                </ul>
+            </div>
+
+            <!-- Quick Start -->
+            <div class="card">
+                <h3 class="card-title">🚀 Como Começar</h3>
+                <p class="card-description">
+                    Para usar o sistema, crie uma conta de nutricionista através da API.
+                </p>
+                <div class="api-info">
+                    <strong>POST /register</strong><br>
+                    Cadastre-se como nutricionista
+                </div>
+                <div class="api-info">
+                    <strong>POST /login</strong><br>
+                    Faça login no sistema
+                </div>
+            </div>
+
+            <!-- Health Check -->
+            <div class="card">
+                <h3 class="card-title">🔍 Status do Sistema</h3>
+                <p class="card-description">
+                    Verifique se todos os serviços estão funcionando corretamente.
+                </p>
+                <a href="/health" class="btn btn-success" target="_blank">Health Check</a>
+                <br><br>
+                <button class="btn btn-warning" onclick="testarAPI()">Testar Conexão</button>
+                <div id="teste-resultado"></div>
+            </div>
+        </div>
+
+        <!-- Calculadora Nutricional -->
+        <div class="calculator-section">
+            <h2 style="color: var(--primary-color); margin-bottom: 20px;">🧮 Calculadora Nutricional</h2>
+            
+            <div class="calc-grid">
+                <!-- IMC Calculator -->
+                <div class="calc-card">
+                    <h4 class="calc-title">📏 Cálculo de IMC</h4>
+                    <div class="form-group">
+                        <label>Peso (kg)</label>
+                        <input type="number" id="imc-peso" step="0.1" placeholder="70.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Altura (cm)</label>
+                        <input type="number" id="imc-altura" placeholder="175">
+                    </div>
+                    <button class="btn btn-primary" onclick="calcularIMC()">Calcular IMC</button>
+                    <div id="resultado-imc" class="result">
+                        <span>Insira peso e altura</span>
+                    </div>
+                </div>
+
+                <!-- TMB Calculator -->
+                <div class="calc-card">
+                    <h4 class="calc-title">🔥 Taxa Metabólica Basal</h4>
+                    <div class="form-group">
+                        <label>Sexo</label>
+                        <select id="tmb-sexo">
+                            <option value="">Selecione</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="feminino">Feminino</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Idade (anos)</label>
+                        <input type="number" id="tmb-idade" placeholder="30">
+                    </div>
+                    <div class="form-group">
+                        <label>Peso (kg)</label>
+                        <input type="number" id="tmb-peso" step="0.1" placeholder="70">
+                    </div>
+                    <div class="form-group">
+                        <label>Altura (cm)</label>
+                        <input type="number" id="tmb-altura" placeholder="175">
+                    </div>
+                    <button class="btn btn-primary" onclick="calcularTMB()">Calcular TMB</button>
+                    <div id="resultado-tmb" class="result">
+                        <span>Preencha todos os campos</span>
+                    </div>
+                </div>
+
+                <!-- Protein Needs -->
+                <div class="calc-card">
+                    <h4 class="calc-title">🥩 Necessidade Proteica</h4>
+                    <div class="form-group">
+                        <label>Peso (kg)</label>
+                        <input type="number" id="prot-peso" step="0.1" placeholder="70">
+                    </div>
+                    <div class="form-group">
+                        <label>Atividade Física</label>
+                        <select id="prot-atividade">
+                            <option value="">Selecione</option>
+                            <option value="0.8">Sedentário (0.8g/kg)</option>
+                            <option value="1.2">Ativo (1.2g/kg)</option>
+                            <option value="1.6">Atleta (1.6g/kg)</option>
+                            <option value="2.0">Força (2.0g/kg)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="calcularProteina()">Calcular Proteína</button>
+                    <div id="resultado-prot" class="result">
+                        <span>Selecione atividade</span>
+                    </div>
+                </div>
+
+                <!-- Water Needs -->
+                <div class="calc-card">
+                    <h4 class="calc-title">💧 Necessidade Hídrica</h4>
+                    <div class="form-group">
+                        <label>Peso (kg)</label>
+                        <input type="number" id="agua-peso" step="0.1" placeholder="70">
+                    </div>
+                    <div class="form-group">
+                        <label>Fator de Atividade</label>
+                        <select id="agua-fator">
+                            <option value="35">Sedentário (35ml/kg)</option>
+                            <option value="40">Ativo (40ml/kg)</option>
+                            <option value="45">Muito Ativo (45ml/kg)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="calcularAgua()">Calcular Água</button>
+                    <div id="resultado-agua" class="result">
+                        <span>Insira o peso</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar status da API
+        async function verificarStatus() {
+            try {
+                const response = await fetch('/health');
+                if (response.ok) {
+                    document.getElementById('status').textContent = 'Sistema Online';
+                    document.getElementById('status').style.background = 'var(--success-color)';
+                } else {
+                    document.getElementById('status').textContent = 'Sistema com Problemas';
+                    document.getElementById('status').style.background = 'var(--warning-color)';
+                }
+            } catch (error) {
+                document.getElementById('status').textContent = 'Sistema Offline';
+                document.getElementById('status').style.background = 'var(--danger-color)';
+            }
+        }
+
+        // Testar API
+        async function testarAPI() {
+            const resultado = document.getElementById('teste-resultado');
+            resultado.innerHTML = '<div style="margin-top: 10px; color: var(--text-secondary);">Testando...</div>';
+            
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultado.innerHTML = `
+                        <div style="margin-top: 10px; color: var(--success-color); font-weight: 600;">
+                            ✅ API funcionando corretamente!<br>
+                            <small>Status: ${data.status}</small>
+                        </div>
+                    `;
+                } else {
+                    resultado.innerHTML = `
+                        <div style="margin-top: 10px; color: var(--warning-color); font-weight: 600;">
+                            ⚠️ API com problemas
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultado.innerHTML = `
+                    <div style="margin-top: 10px; color: var(--danger-color); font-weight: 600;">
+                        ❌ Erro de conexão<br>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Calculadora IMC
+        function calcularIMC() {
+            const peso = parseFloat(document.getElementById('imc-peso').value);
+            const altura = parseFloat(document.getElementById('imc-altura').value) / 100;
+            
+            if (!peso || !altura) {
+                document.getElementById('resultado-imc').innerHTML = '<span>Por favor, preencha peso e altura</span>';
+                return;
+            }
+            
+            const imc = peso / (altura * altura);
+            let classificacao, classe;
+            
+            if (imc < 18.5) {
+                classificacao = 'Baixo peso';
+                classe = 'warning';
+            } else if (imc < 25) {
+                classificacao = 'Peso normal';
+                classe = 'success';
+            } else if (imc < 30) {
+                classificacao = 'Sobrepeso';
+                classe = 'warning';
+            } else {
+                classificacao = 'Obesidade';
+                classe = 'danger';
+            }
+            
+            const resultado = document.getElementById('resultado-imc');
+            resultado.className = `result ${classe}`;
+            resultado.innerHTML = `
+                <div>
+                    <strong>IMC: ${imc.toFixed(1)} kg/m²</strong><br>
+                    ${classificacao}
+                </div>
+            `;
+        }
+
+        // Calculadora TMB
+        function calcularTMB() {
+            const sexo = document.getElementById('tmb-sexo').value;
+            const idade = parseInt(document.getElementById('tmb-idade').value);
+            const peso = parseFloat(document.getElementById('tmb-peso').value);
+            const altura = parseFloat(document.getElementById('tmb-altura').value);
+            
+            if (!sexo || !idade || !peso || !altura) {
+                document.getElementById('resultado-tmb').innerHTML = '<span>Preencha todos os campos</span>';
+                return;
+            }
+            
+            let tmb;
+            if (sexo === 'masculino') {
+                tmb = 88.362 + (13.397 * peso) + (4.799 * altura) - (5.677 * idade);
+            } else {
+                tmb = 447.593 + (9.247 * peso) + (3.098 * altura) - (4.330 * idade);
+            }
+            
+            const resultado = document.getElementById('resultado-tmb');
+            resultado.className = 'result success';
+            resultado.innerHTML = `
+                <div>
+                    <strong>${Math.round(tmb)} kcal/dia</strong><br>
+                    Taxa Metabólica Basal
+                </div>
+            `;
+        }
+
+        // Calculadora Proteína
+        function calcularProteina() {
+            const peso = parseFloat(document.getElementById('prot-peso').value);
+            const fator = parseFloat(document.getElementById('prot-atividade').value);
+            
+            if (!peso || !fator) {
+                document.getElementById('resultado-prot').innerHTML = '<span>Preencha peso e atividade</span>';
+                return;
+            }
+            
+            const proteina = peso * fator;
+            
+            const resultado = document.getElementById('resultado-prot');
+            resultado.className = 'result success';
+            resultado.innerHTML = `
+                <div>
+                    <strong>${proteina.toFixed(1)} g/dia</strong><br>
+                    Necessidade proteica
+                </div>
+            `;
+        }
+
+        // Calculadora Água
+        function calcularAgua() {
+            const peso = parseFloat(document.getElementById('agua-peso').value);
+            const fator = parseFloat(document.getElementById('agua-fator').value);
+            
+            if (!peso || !fator) {
+                document.getElementById('resultado-agua').innerHTML = '<span>Insira o peso</span>';
+                return;
+            }
+            
+            const aguaML = peso * fator;
+            const aguaL = aguaML / 1000;
+            const copos = Math.round(aguaML / 250);
+            
+            const resultado = document.getElementById('resultado-agua');
+            resultado.className = 'result success';
+            resultado.innerHTML = `
+                <div>
+                    <strong>${aguaL.toFixed(1)} L/dia</strong><br>
+                    ${aguaML.toFixed(0)} ml (${copos} copos)
+                </div>
+            `;
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            verificarStatus();
+        });
+    </script>
+</body>
+</html>
