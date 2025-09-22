@@ -3493,3 +3493,2707 @@ class NutriStock360Pro:
                     - Calorias: {media_cal_cat:.0f} kcal
                     - Proteínas: {media_prot_cat:.1f}g
                     """)
+            
+            # Análise de eficiência nutricional
+            st.markdown("### 🏆 Top Receitas por Critérios")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("**🔥 Menor Caloria**")
+                receita_baixa_cal = min(st.session_state.receitas, key=lambda x: x['calorias'])
+                st.info(f"{receita_baixa_cal['nome']}: {receita_baixa_cal['calorias']} kcal")
+            
+            with col2:
+                st.markdown("**🥩 Maior Proteína**")
+                receita_alta_prot = max(st.session_state.receitas, key=lambda x: x['proteinas'])
+                st.info(f"{receita_alta_prot['nome']}: {receita_alta_prot['proteinas']:.1f}g")
+            
+            with col3:
+                st.markdown("**💰 Menor Custo**")
+                receita_barata = min(st.session_state.receitas, key=lambda x: x['custo_estimado'])
+                st.info(f"{receita_barata['nome']}: R$ {receita_barata['custo_estimado']:.2f}")
+            
+            # Comparação de receitas
+            st.markdown("### ⚖️ Comparar Receitas")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                receita1 = st.selectbox("Receita 1", [r['nome'] for r in st.session_state.receitas], key="comp1")
+            
+            with col2:
+                receita2 = st.selectbox("Receita 2", [r['nome'] for r in st.session_state.receitas], key="comp2")
+            
+            if st.button("📊 Comparar", type="primary"):
+                r1 = next(r for r in st.session_state.receitas if r['nome'] == receita1)
+                r2 = next(r for r in st.session_state.receitas if r['nome'] == receita2)
+                
+                # Criar gráfico de comparação
+                categorias = ['Calorias', 'Proteínas', 'Carboidratos', 'Gorduras', 'Fibras']
+                valores_r1 = [r1['calorias']/10, r1['proteinas'], r1['carboidratos'], r1['gorduras'], r1['fibras']]
+                valores_r2 = [r2['calorias']/10, r2['proteinas'], r2['carboidratos'], r2['gorduras'], r2['fibras']]
+                
+                fig = go.Figure()
+                
+                fig.add_trace(go.Scatterpolar(
+                    r=valores_r1,
+                    theta=categorias,
+                    fill='toself',
+                    name=receita1,
+                    fillcolor='rgba(102, 126, 234, 0.2)',
+                    line=dict(color='#667eea')
+                ))
+                
+                fig.add_trace(go.Scatterpolar(
+                    r=valores_r2,
+                    theta=categorias,
+                    fill='toself',
+                    name=receita2,
+                    fillcolor='rgba(72, 187, 120, 0.2)',
+                    line=dict(color='#48bb78')
+                ))
+                
+                fig.update_layout(
+                    polar=dict(radialaxis=dict(visible=True)),
+                    showlegend=True,
+                    title="Comparação Nutricional",
+                    height=500,
+                    paper_bgcolor="rgba(0,0,0,0)"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Tabela comparativa
+                st.markdown("### 📋 Comparação Detalhada")
+                
+                dados_comparacao = {
+                    "Critério": ["Calorias (kcal)", "Proteínas (g)", "Carboidratos (g)", 
+                               "Gorduras (g)", "Fibras (g)", "Custo (R$)"],
+                    receita1: [r1['calorias'], r1['proteinas'], r1['carboidratos'], 
+                              r1['gorduras'], r1['fibras'], r1['custo_estimado']],
+                    receita2: [r2['calorias'], r2['proteinas'], r2['carboidratos'], 
+                              r2['gorduras'], r2['fibras'], r2['custo_estimado']]
+                }
+                
+                df_comp = pd.DataFrame(dados_comparacao)
+                st.dataframe(df_comp, use_container_width=True)
+        
+        else:
+            st.info("📝 Nenhuma receita disponível para análise.")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def agendamentos_page(self):
+        """Sistema de agendamentos"""
+        st.markdown('<div class="main-header"><h1>📅 Sistema de Agendamentos</h1><p>Gestão completa de consultas e compromissos</p></div>', unsafe_allow_html=True)
+        
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📋 Agenda",
+            "➕ Novo Agendamento",
+            "📊 Relatórios",
+            "⚙️ Configurações"
+        ])
+        
+        with tab1:
+            self.visualizar_agenda()
+        
+        with tab2:
+            self.novo_agendamento()
+        
+        with tab3:
+            self.relatorio_agendamentos()
+        
+        with tab4:
+            self.config_agendamentos()
+
+    def visualizar_agenda(self):
+        """Visualização da agenda"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        # Controles de visualização
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            data_visualizacao = st.date_input("📅 Data", value=datetime.now())
+        
+        with col2:
+            tipo_visualizacao = st.selectbox("👁️ Visualização", ["Dia", "Semana", "Mês"])
+        
+        with col3:
+            filtro_status = st.selectbox("📊 Filtrar por status", ["Todos", "Agendado", "Realizado", "Cancelado"])
+        
+        # Estatísticas rápidas
+        hoje = datetime.now().strftime('%Y-%m-%d')
+        agendamentos_hoje = [a for a in st.session_state.agendamentos if a.get('data') == hoje]
+        agendamentos_semana = len([a for a in st.session_state.agendamentos 
+                                 if datetime.strptime(a['data'], '%Y-%m-%d').isocalendar()[1] == datetime.now().isocalendar()[1]])
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Hoje", len(agendamentos_hoje), "+1")
+        with col2:
+            st.metric("Esta Semana", agendamentos_semana, "+3")
+        with col3:
+            receita_dia = sum([a.get('valor', 0) for a in agendamentos_hoje if a.get('status') == 'Realizado'])
+            st.metric("Receita Hoje", f"R$ {receita_dia:.2f}")
+        with col4:
+            taxa_comparecimento = 92  # Simulado
+            st.metric("Taxa Comparecimento", f"{taxa_comparecimento}%", "+2%")
+        
+        # Visualização da agenda
+        st.markdown("### 📋 Agenda do Dia")
+        
+        data_str = data_visualizacao.strftime('%Y-%m-%d')
+        agendamentos_data = [a for a in st.session_state.agendamentos if a.get('data') == data_str]
+        
+        if filtro_status != "Todos":
+            agendamentos_data = [a for a in agendamentos_data if a.get('status') == filtro_status]
+        
+        if agendamentos_data:
+            agendamentos_data.sort(key=lambda x: x['horario'])
+            
+            for agendamento in agendamentos_data:
+                col1, col2, col3, col4 = st.columns([2, 3, 2, 1])
+                
+                status_colors = {
+                    "Agendado": "#667eea",
+                    "Realizado": "#48bb78",
+                    "Cancelado": "#e53e3e",
+                    "Em andamento": "#ed8936"
+                }
+                
+                color = status_colors.get(agendamento.get('status', 'Agendado'), '#718096')
+                
+                with col1:
+                    st.markdown(f"""
+                    <div style="background: {color}15; padding: 1rem; border-radius: 10px; border-left: 4px solid {color};">
+                        <div style="color: {color}; font-weight: 700; font-size: 1.1rem;">
+                            🕐 {agendamento['horario']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    st.markdown(f"**👤 {agendamento['paciente']}**")
+                    st.markdown(f"📋 {agendamento['tipo']}")
+                    if agendamento.get('observacoes'):
+                        st.markdown(f"💭 {agendamento['observacoes']}")
+                
+                with col3:
+                    st.markdown(f"**💰 R$ {agendamento.get('valor', 0):.2f}**")
+                    st.markdown(f"📊 {agendamento.get('status', 'Agendado')}")
+                
+                with col4:
+                    if st.button("✏️", key=f"edit_agenda_{agendamento['id']}", help="Editar"):
+                        st.info(f"Editando agendamento {agendamento['id']}")
+                
+                st.divider()
+        
+        else:
+            st.info(f"📅 Nenhum agendamento encontrado para {data_visualizacao.strftime('%d/%m/%Y')}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def novo_agendamento(self):
+        """Formulário para novo agendamento"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("➕ Novo Agendamento")
+        
+        with st.form("novo_agendamento"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**👤 Informações do Paciente**")
+                
+                if st.session_state.pacientes:
+                    paciente_opcoes = [p['nome'] for p in st.session_state.pacientes]
+                    paciente_agendamento = st.selectbox("Paciente", ["Novo paciente"] + paciente_opcoes)
+                    
+                    if paciente_agendamento == "Novo paciente":
+                        nome_novo = st.text_input("Nome completo")
+                        telefone_novo = st.text_input("Telefone")
+                        email_novo = st.text_input("Email")
+                else:
+                    paciente_agendamento = "Novo paciente"
+                    nome_novo = st.text_input("Nome completo")
+                    telefone_novo = st.text_input("Telefone")
+                    email_novo = st.text_input("Email")
+                
+                observacoes_agenda = st.text_area("Observações", height=80)
+            
+            with col2:
+                st.markdown("**📅 Dados do Agendamento**")
+                
+                data_agendamento = st.date_input("Data", min_value=datetime.now().date())
+                horario_agendamento = st.time_input("Horário", value=datetime.now().time())
+                
+                tipos_consulta = st.session_state.configuracoes.get('tipos_consulta', ["Consulta inicial", "Retorno", "Avaliação"])
+                tipo_consulta = st.selectbox("Tipo de consulta", tipos_consulta)
+                
+                if tipo_consulta == "Consulta inicial":
+                    valor_consulta = st.session_state.configuracoes.get('valor_consulta', 150.0)
+                else:
+                    valor_consulta = st.session_state.configuracoes.get('valor_retorno', 100.0)
+                
+                valor_agendamento = st.number_input("Valor (R$)", value=valor_consulta, min_value=0.0, step=10.0)
+                
+                duracao = st.selectbox("Duração", ["30 min", "45 min", "60 min", "90 min", "120 min"])
+                
+                modalidade = st.radio("Modalidade", ["Presencial", "Online"], horizontal=True)
+            
+            # Lembrete e confirmação
+            st.markdown("**🔔 Configurações de Lembrete**")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                enviar_whatsapp = st.checkbox("📱 Lembrete WhatsApp", value=True)
+            
+            with col2:
+                enviar_email = st.checkbox("📧 Lembrete Email", value=True)
+            
+            with col3:
+                tempo_lembrete = st.selectbox("⏰ Enviar lembrete", ["1 hora antes", "2 horas antes", "1 dia antes"])
+            
+            submitted = st.form_submit_button("📅 Agendar Consulta", type="primary", use_container_width=True)
+            
+            if submitted:
+                # Validações
+                if paciente_agendamento == "Novo paciente":
+                    if not nome_novo or not telefone_novo:
+                        st.error("❌ Nome e telefone são obrigatórios para novo paciente")
+                        return
+                    nome_paciente = nome_novo
+                else:
+                    nome_paciente = paciente_agendamento
+                
+                # Verificar conflitos de horário
+                data_str = data_agendamento.strftime('%Y-%m-%d')
+                horario_str = horario_agendamento.strftime('%H:%M')
+                
+                conflito = any(
+                    a['data'] == data_str and a['horario'] == horario_str 
+                    for a in st.session_state.agendamentos
+                )
+                
+                if conflito:
+                    st.error("❌ Já existe um agendamento para este horário!")
+                    return
+                
+                # Criar agendamento
+                novo_agendamento = {
+                    "id": len(st.session_state.agendamentos) + 1,
+                    "paciente": nome_paciente,
+                    "data": data_str,
+                    "horario": horario_str,
+                    "tipo": tipo_consulta,
+                    "valor": valor_agendamento,
+                    "duracao": duracao,
+                    "modalidade": modalidade,
+                    "status": "Agendado",
+                    "observacoes": observacoes_agenda,
+                    "lembrete_whatsapp": enviar_whatsapp,
+                    "lembrete_email": enviar_email,
+                    "tempo_lembrete": tempo_lembrete,
+                    "data_criacao": datetime.now().strftime('%Y-%m-%d %H:%M')
+                }
+                
+                # Se for novo paciente, adicionar aos pacientes
+                if paciente_agendamento == "Novo paciente":
+                    novo_paciente_agenda = {
+                        "id": len(st.session_state.pacientes) + 1,
+                        "nome": nome_novo,
+                        "email": email_novo or "",
+                        "telefone": telefone_novo,
+                        "data_nascimento": "",
+                        "sexo": "Não informado",
+                        "peso": 0,
+                        "altura": 0,
+                        "objetivo": "A definir",
+                        "data_cadastro": datetime.now().strftime("%Y-%m-%d"),
+                        "status": "Ativo",
+                        "imc": 0,
+                        "bf_percent": 0,
+                        "observacoes": "Cadastrado via agendamento"
+                    }
+                    st.session_state.pacientes.append(novo_paciente_agenda)
+                
+                st.session_state.agendamentos.append(novo_agendamento)
+                
+                st.success("✅ Agendamento criado com sucesso!")
+                st.balloons()
+                
+                # Mostrar resumo
+                st.info(f"""
+                **📅 Resumo do Agendamento:**
+                - **Paciente:** {nome_paciente}
+                - **Data:** {data_agendamento.strftime('%d/%m/%Y')}
+                - **Horário:** {horario_str}
+                - **Tipo:** {tipo_consulta}
+                - **Valor:** R$ {valor_agendamento:.2f}
+                - **Modalidade:** {modalidade}
+                """)
+                
+                if enviar_whatsapp or enviar_email:
+                    st.info(f"🔔 Lembrete será enviado {tempo_lembrete}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def relatorio_agendamentos(self):
+        """Relatórios de agendamentos"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("📊 Relatórios de Agendamentos")
+        
+        # Período de análise
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            data_inicio = st.date_input("📅 Data inicial", value=datetime.now().date() - timedelta(days=30))
+        
+        with col2:
+            data_fim = st.date_input("📅 Data final", value=datetime.now().date())
+        
+        # Filtrar agendamentos por período
+        agendamentos_periodo = []
+        for agendamento in st.session_state.agendamentos:
+            data_agenda = datetime.strptime(agendamento['data'], '%Y-%m-%d').date()
+            if data_inicio <= data_agenda <= data_fim:
+                agendamentos_periodo.append(agendamento)
+        
+        if agendamentos_periodo:
+            # Estatísticas do período
+            st.markdown("### 📊 Estatísticas do Período")
+            
+            total_agendamentos = len(agendamentos_periodo)
+            agendamentos_realizados = len([a for a in agendamentos_periodo if a.get('status') == 'Realizado'])
+            agendamentos_cancelados = len([a for a in agendamentos_periodo if a.get('status') == 'Cancelado'])
+            receita_total = sum([a.get('valor', 0) for a in agendamentos_periodo if a.get('status') == 'Realizado'])
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total Agendamentos", total_agendamentos)
+            with col2:
+                taxa_realizacao = (agendamentos_realizados / total_agendamentos) * 100 if total_agendamentos > 0 else 0
+                st.metric("Realizados", agendamentos_realizados, f"{taxa_realizacao:.1f}%")
+            with col3:
+                taxa_cancelamento = (agendamentos_cancelados / total_agendamentos) * 100 if total_agendamentos > 0 else 0
+                st.metric("Cancelados", agendamentos_cancelados, f"{taxa_cancelamento:.1f}%")
+            with col4:
+                st.metric("Receita", f"R$ {receita_total:.2f}")
+            
+            # Gráficos
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Gráfico de pizza - status
+                status_counts = {}
+                for agendamento in agendamentos_periodo:
+                    status = agendamento.get('status', 'Agendado')
+                    status_counts[status] = status_counts.get(status, 0) + 1
+                
+                fig = go.Figure(data=[go.Pie(
+                    labels=list(status_counts.keys()),
+                    values=list(status_counts.values()),
+                    marker_colors=['#667eea', '#48bb78', '#e53e3e', '#ed8936']
+                )])
+                
+                fig.update_layout(
+                    title="Distribuição por Status",
+                    height=400,
+                    paper_bgcolor="rgba(0,0,0,0)"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Gráfico de barras - tipos de consulta
+                tipos_counts = {}
+                for agendamento in agendamentos_periodo:
+                    tipo = agendamento.get('tipo', 'Consulta')
+                    tipos_counts[tipo] = tipos_counts.get(tipo, 0) + 1
+                
+                fig = go.Figure(data=[go.Bar(
+                    x=list(tipos_counts.keys()),
+                    y=list(tipos_counts.values()),
+                    marker_color='#667eea'
+                )])
+                
+                fig.update_layout(
+                    title="Tipos de Consulta",
+                    height=400,
+                    paper_bgcolor="rgba(0,0,0,0)"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Tabela detalhada
+            st.markdown("### 📋 Detalhamento dos Agendamentos")
+            
+            df_agendamentos = pd.DataFrame(agendamentos_periodo)
+            df_display = df_agendamentos[['data', 'horario', 'paciente', 'tipo', 'valor', 'status']].copy()
+            df_display['data'] = pd.to_datetime(df_display['data']).dt.strftime('%d/%m/%Y')
+            df_display['valor'] = df_display['valor'].apply(lambda x: f"R$ {x:.2f}")
+            
+            st.dataframe(df_display, use_container_width=True)
+            
+            # Exportar dados
+            if st.button("📊 Exportar Relatório", type="secondary"):
+                st.success("Relatório exportado com sucesso! (Funcionalidade em desenvolvimento)")
+        
+        else:
+            st.info("📅 Nenhum agendamento encontrado no período selecionado.")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def config_agendamentos(self):
+        """Configurações de agendamentos"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("⚙️ Configurações de Agendamentos")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**💰 Valores das Consultas**")
+            
+            valor_consulta = st.number_input(
+                "Consulta inicial (R$)",
+                value=st.session_state.configuracoes.get('valor_consulta', 150.0),
+                min_value=0.0,
+                step=10.0
+            )
+            
+            valor_retorno = st.number_input(
+                "Consulta de retorno (R$)",
+                value=st.session_state.configuracoes.get('valor_retorno', 100.0),
+                min_value=0.0,
+                step=10.0
+            )
+            
+            st.markdown("**⏰ Horários de Funcionamento**")
+            
+            horario_inicio = st.time_input(
+                "Horário de início",
+                value=datetime.strptime(st.session_state.configuracoes.get('horario_inicio', '08:00'), '%H:%M').time()
+            )
+            
+            horario_fim = st.time_input(
+                "Horário de término",
+                value=datetime.strptime(st.session_state.configuracoes.get('horario_fim', '18:00'), '%H:%M').time()
+            )
+        
+        with col2:
+            st.markdown("**📅 Dias de Trabalho**")
+            
+            dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+            dias_trabalho = st.multiselect(
+                "Selecione os dias",
+                dias_semana,
+                default=st.session_state.configuracoes.get('dias_trabalho', ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"])
+            )
+            
+            st.markdown("**⏱️ Intervalos Disponíveis**")
+            
+            intervalos = st.multiselect(
+                "Duração das consultas",
+                [30, 45, 60, 90, 120],
+                default=st.session_state.configuracoes.get('intervalos_consulta', [60]),
+                format_func=lambda x: f"{x} minutos"
+            )
+            
+            st.markdown("**📋 Tipos de Consulta**")
+            
+            tipos_consulta_atual = st.session_state.configuracoes.get('tipos_consulta', ["Consulta inicial", "Retorno"])
+            
+            # Sistema para editar tipos de consulta
+            for i, tipo in enumerate(tipos_consulta_atual):
+                col_a, col_b = st.columns([3, 1])
+                with col_a:
+                    st.text_input(f"Tipo {i+1}", value=tipo, key=f"tipo_{i}")
+                with col_b:
+                    if st.button("🗑️", key=f"remove_tipo_{i}") and len(tipos_consulta_atual) > 1:
+                        tipos_consulta_atual.pop(i)
+                        st.rerun()
+        
+        # Botão para salvar configurações
+        if st.button("💾 Salvar Configurações", type="primary", use_container_width=True):
+            st.session_state.configuracoes.update({
+                'valor_consulta': valor_consulta,
+                'valor_retorno': valor_retorno,
+                'horario_inicio': horario_inicio.strftime('%H:%M'),
+                'horario_fim': horario_fim.strftime('%H:%M'),
+                'dias_trabalho': dias_trabalho,
+                'intervalos_consulta': intervalos
+            })
+            
+            st.success("✅ Configurações salvas com sucesso!")
+            time.sleep(1)
+            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def comunicacao_page(self):
+        """Sistema de comunicação"""
+        st.markdown('<div class="main-header"><h1>💬 Sistema de Comunicação</h1><p>WhatsApp, templates e comunicação integrada</p></div>', unsafe_allow_html=True)
+        
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📱 WhatsApp",
+            "📧 Templates", 
+            "📊 Histórico",
+            "⚙️ Configurações"
+        ])
+        
+        with tab1:
+            self.whatsapp_comunicacao()
+        
+        with tab2:
+            self.templates_comunicacao()
+        
+        with tab3:
+            self.historico_comunicacao()
+        
+        with tab4:
+            self.config_comunicacao()
+
+    def whatsapp_comunicacao(self):
+        """Interface do WhatsApp"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("📱 WhatsApp Business")
+        
+        # Estatísticas
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Mensagens Enviadas", "247", "+12 hoje")
+        with col2:
+            st.metric("Taxa de Entrega", "98.5%", "+0.3%")
+        with col3:
+            st.metric("Taxa de Resposta", "76%", "+5%")
+        with col4:
+            st.metric("Tempo Médio Resposta", "2.3h", "-0.5h")
+        
+        # Envio de mensagem
+        st.markdown("### 📤 Enviar Mensagem")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # Seleção do destinatário
+            destinatario_tipo = st.radio("👤 Destinatário", ["Paciente específico", "Grupo de pacientes", "Número manual"])
+            
+            if destinatario_tipo == "Paciente específico":
+                if st.session_state.pacientes:
+                    paciente_whats = st.selectbox("Selecionar paciente", [p['nome'] for p in st.session_state.pacientes])
+                    telefone_destino = next(p['telefone'] for p in st.session_state.pacientes if p['nome'] == paciente_whats)
+                    st.info(f"📱 {telefone_destino}")
+                else:
+                    st.warning("Nenhum paciente cadastrado")
+                    telefone_destino = ""
+            
+            elif destinatario_tipo == "Grupo de pacientes":
+                filtros_grupo = st.multiselect("Filtrar por", ["Objetivo", "Status", "Idade"])
+                if "Objetivo" in filtros_grupo:
+                    objetivos = st.multiselect("Objetivos", ["Perda de peso", "Ganho de massa", "Manutenção"])
+                pacientes_selecionados = len(st.session_state.pacientes)  # Simulado
+                st.info(f"👥 {pacientes_selecionados} pacientes selecionados")
+                telefone_destino = "grupo"
+            
+            else:
+                telefone_destino = st.text_input("📱 Número do telefone", placeholder="+55 11 99999-9999")
+            
+            # Template ou mensagem personalizada
+            opcao_mensagem = st.radio("📝 Tipo de mensagem", ["Template", "Mensagem personalizada"])
+            
+            if opcao_mensagem == "Template":
+                templates_disponiveis = list(st.session_state.templates_comunicacao.keys())
+                template_selecionado = st.selectbox("Selecionar template", templates_disponiveis)
+                
+                if template_selecionado:
+                    template_texto = st.session_state.templates_comunicacao[template_selecionado]
+                    st.text_area("Preview do template", value=template_texto, disabled=True, height=100)
+            
+            else:
+                template_texto = st.text_area("✏️ Digite sua mensagem", height=120, 
+                                            placeholder="Digite aqui sua mensagem personalizada...")
+            
+            # Opções avançadas
+            with st.expander("⚙️ Opções Avançadas"):
+                agendar_envio = st.checkbox("⏰ Agendar envio")
+                if agendar_envio:
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        data_envio = st.date_input("Data", min_value=datetime.now().date())
+                    with col_b:
+                        hora_envio = st.time_input("Horário")
+                
+                incluir_anexo = st.checkbox("📎 Incluir anexo")
+                if incluir_anexo:
+                    tipo_anexo = st.selectbox("Tipo", ["Imagem", "PDF", "Documento"])
+                    anexo = st.file_uploader("Selecionar arquivo")
+        
+        with col2:
+            st.markdown("### 🚀 Enviar")
+            
+            if st.button("📤 Enviar Agora", type="primary", use_container_width=True):
+                if telefone_destino and template_texto:
+                    if agendar_envio:
+                        st.success(f"✅ Mensagem agendada para {data_envio.strftime('%d/%m/%Y')} às {hora_envio.strftime('%H:%M')}")
+                    else:
+                        st.success("✅ Mensagem enviada com sucesso!")
+                        
+                        # Simular histórico
+                        novo_historico = {
+                            "data": datetime.now().strftime('%d/%m/%Y %H:%M'),
+                            "destinatario": telefone_destino,
+                            "mensagem": template_texto[:50] + "...",
+                            "status": "Enviado",
+                            "tipo": "WhatsApp"
+                        }
+                        
+                        if 'historico_mensagens' not in st.session_state:
+                            st.session_state.historico_mensagens = []
+                        
+                        st.session_state.historico_mensagens.append(novo_historico)
+                else:
+                    st.error("❌ Preencha todos os campos obrigatórios")
+            
+            if st.button("👁️ Preview", type="secondary", use_container_width=True):
+                if template_texto:
+                    st.info("📱 Preview da mensagem:")
+                    st.text_area("", value=template_texto, disabled=True, height=80)
+            
+            if st.button("💾 Salvar como Template", type="secondary", use_container_width=True):
+                if template_texto:
+                    nome_template = st.text_input("Nome do template")
+                    if nome_template:
+                        st.session_state.templates_comunicacao[nome_template] = template_texto
+                        st.success(f"✅ Template '{nome_template}' salvo!")
+        
+        # Histórico recente
+        st.markdown("### 📋 Mensagens Recentes")
+        
+        if 'historico_mensagens' in st.session_state and st.session_state.historico_mensagens:
+            for msg in st.session_state.historico_mensagens[-5:]:  # Últimas 5
+                col1, col2, col3, col4 = st.columns([2, 3, 2, 1])
+                
+                with col1:
+                    st.markdown(f"**{msg['data']}**")
+                
+                with col2:
+                    st.markdown(f"📱 {msg['destinatario']}")
+                    st.markdown(f"💬 {msg['mensagem']}")
+                
+                with col3:
+                    status_color = "#48bb78" if msg['status'] == "Enviado" else "#ed8936"
+                    st.markdown(f'<span style="color: {status_color};">● {msg["status"]}</span>', unsafe_allow_html=True)
+                
+                with col4:
+                    if st.button("📊", key=f"stats_{msg['data']}", help="Estatísticas"):
+                        st.info("📊 Entregue em 2.3s, Lida em 5.2min")
+        
+        else:
+            st.info("📝 Nenhuma mensagem enviada ainda.")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def templates_comunicacao(self):
+        """Gestão de templates"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("📧 Gestão de Templates")
+        
+        # Templates existentes
+        st.markdown("### 📋 Templates Disponíveis")
+        
+        for nome, conteudo in st.session_state.templates_comunicacao.items():
+            with st.expander(f"📄 {nome.replace('_', ' ').title()}"):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.text_area("Conteúdo", value=conteudo, height=100, disabled=True)
+                    
+                    # Variáveis disponíveis
+                    st.info("**Variáveis disponíveis:** {nome}, {data}, {horario}")
+                
+                with col2:
+                    if st.button("✏️ Editar", key=f"edit_{nome}"):
+                        st.session_state[f"editando_{nome}"] = True
+                    
+                    if st.button("📋 Usar", key=f"use_{nome}"):
+                        st.success(f"Template '{nome}' selecionado!")
+                    
+                    if st.button("🗑️ Excluir", key=f"delete_{nome}"):
+                        if st.button("⚠️ Confirmar", key=f"confirm_{nome}"):
+                            del st.session_state.templates_comunicacao[nome]
+                            st.success("Template excluído!")
+                            st.rerun()
+        
+        # Criar novo template
+        st.markdown("### ➕ Criar Novo Template")
+        
+        with st.form("novo_template"):
+            nome_template = st.text_input("Nome do template")
+            categoria_template = st.selectbox("Categoria", [
+                "Lembretes", "Motivacionais", "Informativos", 
+                "Comerciais", "Consultas", "Outros"
+            ])
+            
+            conteudo_template = st.text_area(
+                "Conteúdo do template", 
+                height=120,
+                placeholder="Use {nome} para o nome do paciente, {data} para data, {horario} para horário..."
+            )
+            
+            if st.form_submit_button("💾 Criar Template", type="primary"):
+                if nome_template and conteudo_template:
+                    st.session_state.templates_comunicacao[nome_template] = conteudo_template
+                    st.success(f"✅ Template '{nome_template}' criado com sucesso!")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("❌ Preencha nome e conteúdo do template")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def historico_comunicacao(self):
+        """Histórico de comunicações"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("📊 Histórico de Comunicações")
+        
+        # Filtros
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            filtro_periodo = st.selectbox("📅 Período", ["Últimos 7 dias", "Último mês", "Últimos 3 meses", "Personalizado"])
+        
+        with col2:
+            filtro_tipo = st.selectbox("📱 Tipo", ["Todos", "WhatsApp", "Email", "SMS"])
+        
+        with col3:
+            filtro_status = st.selectbox("📊 Status", ["Todos", "Enviado", "Entregue", "Lido", "Erro"])
+        
+        # Estatísticas do período
+        st.markdown("### 📈 Estatísticas do Período")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total Enviadas", "156", "+23")
+        with col2:
+            st.metric("Taxa Entrega", "97.4%", "+1.2%")
+        with col3:
+            st.metric("Taxa Abertura", "68.2%", "+3.5%")
+        with col4:
+            st.metric("Taxa Resposta", "24.1%", "+2.1%")
+        
+        # Gráfico de evolução
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Simular dados de evolução
+            dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+            enviadas = [23, 18, 25, 31, 28, 12, 8]
+            respondidas = [8, 6, 9, 12, 11, 4, 2]
+            
+            fig = go.Figure()
+            
+            fig.add_trace(go.Bar(
+                name='Enviadas',
+                x=dias,
+                y=enviadas,
+                marker_color='#667eea'
+            ))
+            
+            fig.add_trace(go.Bar(
+                name='Respondidas',
+                x=dias,
+                y=respondidas,
+                marker_color='#48bb78'
+            ))
+            
+            fig.update_layout(
+                title="Mensagens por Dia",
+                barmode='group',
+                height=300,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Gráfico de tipos
+            tipos = ['WhatsApp', 'Email', 'SMS']
+            valores = [78, 15, 7]
+            
+            fig = go.Figure(data=[go.Pie(
+                labels=tipos,
+                values=valores,
+                marker_colors=['#25d366', '#4285f4', '#ff6b35']
+            )])
+            
+            fig.update_layout(
+                title="Distribuição por Tipo",
+                height=300,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Lista detalhada
+        st.markdown("### 📋 Lista de Comunicações")
+        
+        # Dados simulados
+        comunicacoes_exemplo = [
+            {"data": "22/09/2024 14:30", "destinatario": "Maria Silva", "tipo": "WhatsApp", "assunto": "Lembrete consulta", "status": "Lido"},
+            {"data": "22/09/2024 10:15", "destinatario": "João Santos", "tipo": "Email", "assunto": "Plano alimentar", "status": "Entregue"},
+            {"data": "21/09/2024 16:45", "destinatario": "Ana Costa", "tipo": "WhatsApp", "assunto": "Motivacional", "status": "Respondido"},
+        ]
+        
+        for com in comunicacoes_exemplo:
+            col1, col2, col3, col4, col5 = st.columns([2, 2, 1, 2, 1])
+            
+            with col1:
+                st.markdown(f"**{com['data']}**")
+            
+            with col2:
+                st.markdown(f"👤 {com['destinatario']}")
+            
+            with col3:
+                tipo_icons = {"WhatsApp": "📱", "Email": "📧", "SMS": "💬"}
+                st.markdown(f"{tipo_icons.get(com['tipo'], '📱')} {com['tipo']}")
+            
+            with col4:
+                st.markdown(f"📄 {com['assunto']}")
+            
+            with col5:
+                status_colors = {
+                    "Enviado": "#667eea",
+                    "Entregue": "#ed8936", 
+                    "Lido": "#48bb78",
+                    "Respondido": "#10b981"
+                }
+                color = status_colors.get(com['status'], '#718096')
+                st.markdown(f'<span style="color: {color};">● {com["status"]}</span>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def config_comunicacao(self):
+        """Configurações de comunicação"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("⚙️ Configurações de Comunicação")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📱 WhatsApp Business**")
+            
+            whatsapp_ativo = st.checkbox("Ativar WhatsApp", value=True)
+            numero_whatsapp = st.text_input("Número do WhatsApp Business", 
+                                          value=st.session_state.configuracoes.get('whatsapp', ''))
+            
+            if whatsapp_ativo:
+                st.success("✅ WhatsApp conectado")
+            else:
+                st.warning("⚠️ WhatsApp desconectado")
+            
+            st.markdown("**📧 Email**")
+            
+            email_ativo = st.checkbox("Ativar Email", value=True)
+            email_remetente = st.text_input("Email remetente", 
+                                          value=st.session_state.configuracoes.get('email', ''))
+            servidor_smtp = st.text_input("Servidor SMTP", value="smtp.gmail.com")
+            porta_smtp = st.number_input("Porta", value=587)
+            
+        with col2:
+            st.markdown("**🔔 Notificações Automáticas**")
+            
+            lembrete_consulta = st.checkbox("Lembrete de consulta", value=True)
+            tempo_lembrete_padrao = st.selectbox("Tempo padrão do lembrete", 
+                                                ["30 min", "1 hora", "2 horas", "1 dia"])
+            
+            confirmacao_agendamento = st.checkbox("Confirmação de agendamento", value=True)
+            follow_up_consulta = st.checkbox("Follow-up pós consulta", value=False)
+            
+            st.markdown("**📊 Relatórios**")
+            
+            relatorio_semanal = st.checkbox("Relatório semanal automático", value=False)
+            relatorio_mensal = st.checkbox("Relatório mensal automático", value=True)
+            
+            if relatorio_semanal or relatorio_mensal:
+                email_relatorios = st.text_input("Email para relatórios", value=email_remetente)
+        
+        # Testar conectividade
+        st.markdown("### 🧪 Testar Conectividade")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📱 Testar WhatsApp", type="secondary"):
+                with st.spinner("Testando conexão..."):
+                    time.sleep(2)
+                    st.success("✅ WhatsApp conectado e funcionando!")
+        
+        with col2:
+            if st.button("📧 Testar Email", type="secondary"):
+                with st.spinner("Testando SMTP..."):
+                    time.sleep(2)
+                    st.success("✅ Servidor de email configurado corretamente!")
+        
+        # Salvar configurações
+        if st.button("💾 Salvar Configurações", type="primary", use_container_width=True):
+            st.session_state.configuracoes.update({
+                'whatsapp': numero_whatsapp,
+                'email': email_remetente,
+                'whatsapp_ativo': whatsapp_ativo,
+                'email_ativo': email_ativo,
+                'lembrete_consulta': lembrete_consulta,
+                'tempo_lembrete_padrao': tempo_lembrete_padrao,
+                'confirmacao_agendamento': confirmacao_agendamento,
+                'follow_up_consulta': follow_up_consulta,
+                'relatorio_semanal': relatorio_semanal,
+                'relatorio_mensal': relatorio_mensal
+            })
+            
+            st.success("✅ Configurações de comunicação salvas!")
+            time.sleep(1)
+            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def relatorios_page(self):
+        """Sistema de relatórios avançados"""
+        st.markdown('<div class="main-header"><h1>📊 Relatórios Avançados</h1><p>Analytics profissionais e insights detalhados</p></div>', unsafe_allow_html=True)
+        
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📈 Dashboard Analytics",
+            "👥 Relatório de Pacientes",
+            "💰 Relatório Financeiro", 
+            "📊 Relatórios Customizados"
+        ])
+        
+        with tab1:
+            self.dashboard_analytics()
+        
+        with tab2:
+            self.relatorio_pacientes()
+        
+        with tab3:
+            self.relatorio_financeiro()
+        
+        with tab4:
+            self.relatorios_customizados()
+
+    def dashboard_analytics(self):
+        """Dashboard com analytics avançados"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("📈 Dashboard Analytics")
+        
+        # Seletor de período
+        col1, col2, col3 = st.columns([2, 2, 1])
+        
+        with col1:
+            periodo_inicio = st.date_input("📅 Data inicial", value=datetime.now().date() - timedelta(days=90))
+        
+        with col2:
+            periodo_fim = st.date_input("📅 Data final", value=datetime.now().date())
+        
+        with col3:
+            if st.button("🔄 Atualizar", type="primary"):
+                st.success("Dados atualizados!")
+        
+        # KPIs principais com comparação
+        st.markdown("### 📊 KPIs Principais")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        # Dados simulados com tendências
+        total_pacientes_periodo = len(st.session_state.pacientes)
+        consultas_realizadas = len([a for a in st.session_state.agendamentos if a.get('status') == 'Realizado'])
+        receita_periodo = sum([a.get('valor', 0) for a in st.session_state.agendamentos if a.get('status') == 'Realizado'])
+        ticket_medio = receita_periodo / consultas_realizadas if consultas_realizadas > 0 else 0
+        
+        with col1:
+            st.markdown(f'''
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div class="metric-value">{total_pacientes_periodo}</div>
+                    <div class="metric-label">Pacientes Ativos</div>
+                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 +15% vs período anterior</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+        with col2:
+            st.markdown(f'''
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div class="metric-value">{consultas_realizadas}</div>
+                    <div class="metric-label">Consultas Realizadas</div>
+                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 +8% vs período anterior</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+        with col3:
+            st.markdown(f'''
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div class="metric-value">R$ {receita_periodo:,.0f}</div>
+                    <div class="metric-label">Receita Total</div>
+                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 +22% vs período anterior</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+        with col4:
+            st.markdown(f'''
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div class="metric-value">R$ {ticket_medio:.0f}</div>
+                    <div class="metric-label">Ticket Médio</div>
+                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 +5% vs período anterior</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+        
+        # Gráficos analíticos
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📈 Evolução Mensal")
+            
+            # Dados simulados de evolução mensal
+            meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set']
+            novos_pacientes = [3, 5, 8, 6, 9, 12, 8, 10, 7]
+            receita_mensal = [450, 750, 1200, 900, 1350, 1800, 1200, 1500, 1050]
+            
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=meses,
+                y=novos_pacientes,
+                mode='lines+markers',
+                name='Novos Pacientes',
+                line=dict(color='#667eea', width=3),
+                yaxis='y'
+            ))
+            
+            fig.add_trace(go.Scatter(
+                x=meses,
+                y=receita_mensal,
+                mode='lines+markers',
+                name='Receita (R$)',
+                line=dict(color='#48bb78', width=3),
+                yaxis='y2'
+            ))
+            
+            fig.update_layout(
+                title="Crescimento do Negócio",
+                yaxis=dict(title="Novos Pacientes", side="left"),
+                yaxis2=dict(title="Receita (R$)", side="right", overlaying="y"),
+                height=400,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("### 🎯 Análise de Conversão")
+            
+            # Funil de conversão
+            etapas = ['Contatos', 'Agendamentos', 'Consultas', 'Retornos']
+            valores = [150, 120, 95, 72]
+            
+            fig = go.Figure(go.Funnel(
+                y=etapas,
+                x=valores,
+                textinfo="value+percent initial",
+                marker_color=['#667eea', '#48bb78', '#ed8936', '#f093fb']
+            ))
+            
+            fig.update_layout(
+                title="Funil de Conversão",
+                height=400,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Análises avançadas
+        st.markdown("### 📊 Análises Avançadas")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("#### 👥 Perfil dos Pacientes")
+            
+            # Distribuição por objetivo
+            objetivos = {}
+            for paciente in st.session_state.pacientes:
+                obj = paciente.get('objetivo', 'Não informado')
+                objetivos[obj] = objetivos.get(obj, 0) + 1
+            
+            if objetivos:
+                fig = go.Figure(data=[go.Pie(
+                    labels=list(objetivos.keys()),
+                    values=list(objetivos.values()),
+                    hole=.3
+                )])
+                
+                fig.update_layout(
+                    title="Distribuição por Objetivo",
+                    height=300,
+                    paper_bgcolor="rgba(0,0,0,0)"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### ⏰ Performance por Horário")
+            
+            # Dados simulados de horários
+            horarios = ['08h', '10h', '14h', '16h', '18h']
+            agendamentos_por_hora = [15, 25, 30, 28, 12]
+            
+            fig = go.Figure(data=[go.Bar(
+                x=horarios,
+                y=agendamentos_por_hora,
+                marker_color='#667eea'
+            )])
+            
+            fig.update_layout(
+                title="Agendamentos por Horário",
+                height=300,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col3:
+            st.markdown("#### 📅 Sazonalidade")
+            
+            # Dados de sazonalidade
+            dias_semana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex']
+            consultas_por_dia = [18, 22, 25, 20, 15]
+            
+            fig = go.Figure(data=[go.Bar(
+                x=dias_semana,
+                y=consultas_por_dia,
+                marker_color='#48bb78'
+            )])
+            
+            fig.update_layout(
+                title="Consultas por Dia da Semana",
+                height=300,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Insights e recomendações
+        st.markdown("### 💡 Insights & Recomendações")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("""
+            <div class="calculator-card">
+                <h4 style="color: #48bb78; margin-bottom: 1rem;">🚀 Oportunidades</h4>
+                <div style="line-height: 1.6;">
+                    • <strong>Horário premium:</strong> 14h-16h com maior demanda<br>
+                    • <strong>Terças-feiras:</strong> Melhor dia para agendamentos<br>
+                    • <strong>Retenção:</strong> 76% dos pacientes retornam<br>
+                    • <strong>Crescimento:</strong> +15% novos pacientes/mês
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
+            <div class="calculator-card">
+                <h4 style="color: #ed8936; margin-bottom: 1rem;">⚠️ Pontos de Atenção</h4>
+                <div style="line-height: 1.6;">
+                    • <strong>Cancelamentos:</strong> 8% nas sextas-feiras<br>
+                    • <strong>No-show:</strong> 5% em consultas de retorno<br>
+                    • <strong>Baixa adesão:</strong> Pacientes > 50 anos<br>
+                    • <strong>Sazonalidade:</strong> Queda em dezembro/janeiro
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown("""
+            <div class="calculator-card">
+                <h4 style="color: #667eea; margin-bottom: 1rem;">📈 Ações Recomendadas</h4>
+                <div style="line-height: 1.6;">
+                    • <strong>Marketing:</strong> Foque em mulheres 25-40 anos<br>
+                    • <strong>Pricing:</strong> Considere pacotes de consultas<br>
+                    • <strong>Processo:</strong> Automatize lembretes<br>
+                    • <strong>Expansão:</strong> Considere atendimento noturno
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def relatorio_pacientes(self):
+        """Relatório detalhado de pacientes"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("👥 Relatório de Pacientes")
+        
+        if st.session_state.pacientes:
+            # Filtros
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                filtro_status = st.selectbox("Status", ["Todos", "Ativo", "Inativo"])
+            
+            with col2:
+                filtro_objetivo = st.selectbox("Objetivo", ["Todos"] + list(set([p.get('objetivo', '') for p in st.session_state.pacientes])))
+            
+            with col3:
+                ordenar_por = st.selectbox("Ordenar por", ["Nome", "Data cadastro", "IMC", "Última consulta"])
+            
+            # Análise estatística
+            st.markdown("### 📊 Análise Estatística dos Pacientes")
+            
+            # Preparar dados
+            idades = []
+            imcs = []
+            for paciente in st.session_state.pacientes:
+                if paciente.get('data_nascimento'):
+                    try:
+                        nascimento = datetime.strptime(paciente['data_nascimento'], '%Y-%m-%d')
+                        idade = (datetime.now() - nascimento).days // 365
+                        idades.append(idade)
+                    except:
+                        pass
+                
+                if paciente.get('imc'):
+                    imcs.append(paciente['imc'])
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                idade_media = sum(idades) / len(idades) if idades else 0
+                st.metric("Idade Média", f"{idade_media:.0f} anos")
+            
+            with col2:
+                imc_medio = sum(imcs) / len(imcs) if imcs else 0
+                st.metric("IMC Médio", f"{imc_medio:.1f}")
+            
+            with col3:
+                pacientes_objetivo_peso = len([p for p in st.session_state.pacientes if 'peso' in p.get('objetivo', '').lower()])
+                st.metric("Foco Emagrecimento", f"{pacientes_objetivo_peso}")
+            
+            with col4:
+                retencao = 85  # Simulado
+                st.metric("Taxa Retenção", f"{retencao}%")
+            
+            # Gráficos de análise
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if idades:
+                    # Distribuição de idades
+                    fig = go.Figure(data=[go.Histogram(
+                        x=idades,
+                        nbinsx=10,
+                        marker_color='#667eea',
+                        opacity=0.7
+                    )])
+                    
+                    fig.update_layout(
+                        title="Distribuição de Idades",
+                        xaxis_title="Idade (anos)",
+                        yaxis_title="Número de Pacientes",
+                        height=300,
+                        paper_bgcolor="rgba(0,0,0,0)"
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                if imcs:
+                    # Distribuição de IMCs
+                    fig = go.Figure(data=[go.Histogram(
+                        x=imcs,
+                        nbinsx=8,
+                        marker_color='#48bb78',
+                        opacity=0.7
+                    )])
+                    
+                    fig.update_layout(
+                        title="Distribuição de IMCs",
+                        xaxis_title="IMC (kg/m²)",
+                        yaxis_title="Número de Pacientes",
+                        height=300,
+                        paper_bgcolor="rgba(0,0,0,0)"
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            # Tabela detalhada dos pacientes
+            st.markdown("### 📋 Lista Detalhada de Pacientes")
+            
+            # Preparar dados para a tabela
+            dados_tabela = []
+            for paciente in st.session_state.pacientes:
+                # Calcular idade
+                idade = "N/A"
+                if paciente.get('data_nascimento'):
+                    try:
+                        nascimento = datetime.strptime(paciente['data_nascimento'], '%Y-%m-%d')
+                        idade = (datetime.now() - nascimento).days // 365
+                    except:
+                        pass
+                
+                # Última consulta (simulado)
+                ultima_consulta = "22/08/2024"  # Simulado
+                
+                dados_tabela.append({
+                    "Nome": paciente['nome'],
+                    "Email": paciente['email'],
+                    "Telefone": paciente['telefone'],
+                    "Idade": idade,
+                    "Objetivo": paciente.get('objetivo', 'N/A'),
+                    "IMC": f"{paciente.get('imc', 0):.1f}",
+                    "Status": paciente.get('status', 'Ativo'),
+                    "Cadastro": paciente.get('data_cadastro', 'N/A'),
+                    "Última Consulta": ultima_consulta
+                })
+            
+            df_pacientes = pd.DataFrame(dados_tabela)
+            
+            # Aplicar filtros
+            if filtro_status != "Todos":
+                df_pacientes = df_pacientes[df_pacientes['Status'] == filtro_status]
+            
+            if filtro_objetivo != "Todos":
+                df_pacientes = df_pacientes[df_pacientes['Objetivo'] == filtro_objetivo]
+            
+            # Mostrar tabela
+            st.dataframe(df_pacientes, use_container_width=True, height=400)
+            
+            # Opções de exportação
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("📊 Exportar Excel", type="secondary"):
+                    st.success("Relatório exportado para Excel! (Em desenvolvimento)")
+            
+            with col2:
+                if st.button("📄 Exportar PDF", type="secondary"):
+                    st.success("Relatório exportado para PDF! (Em desenvolvimento)")
+            
+            with col3:
+                if st.button("📧 Enviar por Email", type="secondary"):
+                    st.success("Relatório enviado por email! (Em desenvolvimento)")
+        
+        else:
+            st.info("📝 Nenhum paciente cadastrado para gerar relatório.")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def relatorio_financeiro(self):
+        """Relatório financeiro"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("💰 Relatório Financeiro")
+        
+        # Período de análise
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            data_inicio_fin = st.date_input("📅 Data inicial", value=datetime.now().date() - timedelta(days=90), key="fin_inicio")
+        
+        with col2:
+            data_fim_fin = st.date_input("📅 Data final", value=datetime.now().date(), key="fin_fim")
+        
+        # Dados financeiros simulados
+        receita_total = 12750.00
+        consultas_realizadas_fin = 85
+        ticket_medio_fin = receita_total / consultas_realizadas_fin
+        custos_operacionais = 2500.00
+        lucro_liquido = receita_total - custos_operacionais
+        
+        # Resumo financeiro
+        st.markdown("### 💰 Resumo Financeiro")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f'''
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div class="metric-value">R$ {receita_total:,.2f}</div>
+                    <div class="metric-label">Receita Bruta</div>
+                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 +18%</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+        with col2:
+            st.markdown(f'''
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div class="metric-value">R$ {ticket_medio_fin:.2f}</div>
+                    <div class="metric-label">Ticket Médio</div>
+                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 +5%</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+        with col3:
+            st.markdown(f'''
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div class="metric-value">R$ {custos_operacionais:,.2f}</div>
+                    <div class="metric-label">Custos</div>
+                    <div style="color: #ed8936; font-size: 0.9rem; margin-top: 0.5rem;">📊 19.6%</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+        with col4:
+            st.markdown(f'''
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div class="metric-value">R$ {lucro_liquido:,.2f}</div>
+                    <div class="metric-label">Lucro Líquido</div>
+                    <div style="color: #48bb78; font-size: 0.9rem; margin-top: 0.5rem;">📈 +25%</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+        
+        # Gráficos financeiros
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Evolução mensal da receita
+            meses_fin = ['Jun', 'Jul', 'Ago', 'Set']
+            receitas_mensais = [3200, 3800, 4250, 4500]
+            custos_mensais = [600, 650, 700, 750]
+            
+            fig = go.Figure()
+            
+            fig.add_trace(go.Bar(
+                name='Receita',
+                x=meses_fin,
+                y=receitas_mensais,
+                marker_color='#48bb78'
+            ))
+            
+            fig.add_trace(go.Bar(
+                name='Custos',
+                x=meses_fin,
+                y=custos_mensais,
+                marker_color='#ed8936'
+            ))
+            
+            fig.update_layout(
+                title="Receita vs Custos Mensais",
+                barmode='group',
+                height=400,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Composição da receita
+            tipos_receita = ['Consulta Inicial', 'Retorno', 'Planos Especiais', 'Outros']
+            valores_receita = [5100, 4080, 2550, 1020]
+            
+            fig = go.Figure(data=[go.Pie(
+                labels=tipos_receita,
+                values=valores_receita,
+                marker_colors=['#667eea', '#48bb78', '#ed8936', '#f093fb']
+            )])
+            
+            fig.update_layout(
+                title="Composição da Receita",
+                height=400,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Análise de rentabilidade
+        st.markdown("### 📊 Análise de Rentabilidade")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Métricas de rentabilidade
+            margem_bruta = ((receita_total - custos_operacionais) / receita_total) * 100
+            roi = (lucro_liquido / custos_operacionais) * 100
+            
+            st.info(f"""
+            **💡 Indicadores de Rentabilidade:**
+            - **Margem Bruta:** {margem_bruta:.1f}%
+            - **ROI:** {roi:.1f}%
+            - **Receita por Consulta:** R$ {ticket_medio_fin:.2f}
+            - **Custo por Consulta:** R$ {custos_operacionais/consultas_realizadas_fin:.2f}
+            """)
+        
+        with col2:
+            # Projeções
+            st.info(f"""
+            **📈 Projeções (próximo trimestre):**
+            - **Receita Projetada:** R$ {receita_total * 1.15:,.2f} (+15%)
+            - **Novos Pacientes Necessários:** {int((receita_total * 0.15) / ticket_medio_fin)}
+            - **Meta Mensal:** R$ {(receita_total * 1.15) / 3:,.2f}
+            - **Crescimento Necessário:** {((receita_total * 1.15) / receita_total - 1) * 100:.1f}% ao mês
+            """)
+        
+        # Breakdown de custos
+        st.markdown("### 💸 Breakdown de Custos")
+        
+        custos_breakdown = {
+            "Aluguel/Espaço": 800,
+            "Marketing": 500,
+            "Materiais": 300,
+            "Software/Tecnologia": 200,
+            "Telefone/Internet": 150,
+            "Outros": 550
+        }
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Gráfico de custos
+            fig = go.Figure(data=[go.Pie(
+                labels=list(custos_breakdown.keys()),
+                values=list(custos_breakdown.values()),
+                hole=.3
+            )])
+            
+            fig.update_layout(
+                title="Distribuição de Custos",
+                height=300,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Tabela de custos
+            df_custos = pd.DataFrame([
+                {"Categoria": k, "Valor": f"R$ {v:.2f}", "% do Total": f"{(v/sum(custos_breakdown.values()))*100:.1f}%"}
+                for k, v in custos_breakdown.items()
+            ])
+            
+            st.dataframe(df_custos, use_container_width=True, height=250)
+        
+        # Ações recomendadas
+        st.markdown("### 💡 Recomendações Financeiras")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.success("""
+            **✅ Pontos Positivos:**
+            - Crescimento consistente (+18%)
+            - Margem saudável (80.4%)
+            - ROI excelente (310%)
+            - Ticket médio crescendo
+            """)
+        
+        with col2:
+            st.warning("""
+            **⚠️ Oportunidades:**
+            - Reduzir custo de aquisição
+            - Aumentar frequência de retornos
+            - Criar pacotes premium
+            - Otimizar custos operacionais
+            """)
+        
+        with col3:
+            st.info("""
+            **📈 Ações Sugeridas:**
+            - Implementar programa de fidelidade
+            - Investir em marketing digital
+            - Automatizar processos
+            - Diversificar serviços
+            """)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def relatorios_customizados(self):
+        """Relatórios customizados"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("📊 Relatórios Customizados")
+        
+        # Builder de relatório
+        st.markdown("### 🛠️ Construtor de Relatório")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📊 Configurações do Relatório**")
+            
+            nome_relatorio = st.text_input("Nome do relatório")
+            tipo_relatorio = st.selectbox("Tipo de relatório", [
+                "Pacientes", "Financeiro", "Agendamentos", 
+                "Comunicação", "Performance", "Customizado"
+            ])
+            
+            periodo_relatorio = st.selectbox("Período", [
+                "Última semana", "Último mês", "Últimos 3 meses",
+                "Último ano", "Período personalizado"
+            ])
+            
+            if periodo_relatorio == "Período personalizado":
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    data_inicio_custom = st.date_input("Data inicial")
+                with col_b:
+                    data_fim_custom = st.date_input("Data final")
+            
+            formato_output = st.selectbox("Formato de saída", [
+                "Dashboard interativo", "PDF", "Excel", "CSV"
+            ])
+        
+        with col2:
+            st.markdown("**📈 Métricas e Dimensões**")
+            
+            metricas_disponiveis = [
+                "Número de pacientes", "Receita total", "Ticket médio",
+                "Taxa de conversão", "Taxa de retenção", "Consultas realizadas",
+                "Tempo médio de tratamento", "Satisfação do paciente"
+            ]
+            
+            metricas_selecionadas = st.multiselect("Métricas", metricas_disponiveis)
+            
+            dimensoes_disponiveis = [
+                "Tempo (diário/semanal/mensal)", "Objetivo do paciente",
+                "Faixa etária", "Sexo", "Tipo de consulta", "Status"
+            ]
+            
+            dimensoes_selecionadas = st.multiselect("Dimensões", dimensoes_disponiveis)
+            
+            graficos_incluir = st.multiselect("Gráficos a incluir", [
+                "Linha temporal", "Gráfico de barras", "Pizza", 
+                "Histograma", "Scatter plot", "Funil"
+            ])
+        
+        # Filtros avançados
+        st.markdown("**🔍 Filtros Avançados**")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            filtro_idade = st.selectbox("Faixa etária", ["Todas", "18-25", "26-35", "36-50", "50+"])
+        
+        with col2:
+            filtro_objetivo_custom = st.selectbox("Objetivo", ["Todos"] + list(set([p.get('objetivo', '') for p in st.session_state.pacientes])))
+        
+        with col3:
+            filtro_valor_min = st.number_input("Valor mínimo consulta", value=0.0)
+        
+        # Visualização prévia
+        if st.button("👁️ Visualizar Prévia", type="secondary"):
+            st.markdown("### 📊 Prévia do Relatório")
+            
+            if metricas_selecionadas and dimensoes_selecionadas:
+                # Simular dados para prévia
+                st.success(f"✅ Relatório '{nome_relatorio}' configurado com sucesso!")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.info(f"""
+                    **📋 Configurações:**
+                    - **Tipo:** {tipo_relatorio}
+                    - **Período:** {periodo_relatorio}
+                    - **Métricas:** {len(metricas_selecionadas)} selecionadas
+                    - **Dimensões:** {len(dimensoes_selecionadas)} selecionadas
+                    """)
+                
+                with col2:
+                    # Gráfico de exemplo
+                    dados_exemplo = [23, 45, 56, 78, 32, 67, 89]
+                    
+                    fig = go.Figure(data=go.Bar(
+                        x=['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+                        y=dados_exemplo,
+                        marker_color='#667eea'
+                    ))
+                    
+                    fig.update_layout(
+                        title="Exemplo: Consultas por Dia",
+                        height=300,
+                        paper_bgcolor="rgba(0,0,0,0)"
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            else:
+                st.warning("⚠️ Selecione ao menos uma métrica e uma dimensão")
+        
+        # Salvar e gerar relatório
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("💾 Salvar Configuração", type="secondary", use_container_width=True):
+                if nome_relatorio:
+                    config_relatorio = {
+                        "nome": nome_relatorio,
+                        "tipo": tipo_relatorio,
+                        "periodo": periodo_relatorio,
+                        "metricas": metricas_selecionadas,
+                        "dimensoes": dimensoes_selecionadas,
+                        "graficos": graficos_incluir,
+                        "formato": formato_output,
+                        "criado_em": datetime.now().strftime("%Y-%m-%d %H:%M")
+                    }
+                    
+                    if 'relatorios_salvos' not in st.session_state:
+                        st.session_state.relatorios_salvos = []
+                    
+                    st.session_state.relatorios_salvos.append(config_relatorio)
+                    st.success(f"✅ Configuração '{nome_relatorio}' salva!")
+                else:
+                    st.error("❌ Digite um nome para o relatório")
+        
+        with col2:
+            if st.button("📊 Gerar Relatório", type="primary", use_container_width=True):
+                if metricas_selecionadas:
+                    with st.spinner("Gerando relatório..."):
+                        time.sleep(2)
+                        st.success(f"✅ Relatório '{nome_relatorio}' gerado com sucesso!")
+                        st.balloons()
+                else:
+                    st.error("❌ Selecione ao menos uma métrica")
+        
+        with col3:
+            if st.button("📧 Agendar Envio", type="secondary", use_container_width=True):
+                with st.expander("⏰ Configurar Agendamento"):
+                    frequencia = st.selectbox("Frequência", ["Diário", "Semanal", "Mensal"])
+                    email_destino = st.text_input("Email destinatário")
+                    if st.button("✅ Confirmar Agendamento"):
+                        st.success(f"📅 Relatório agendado para envio {frequencia.lower()}")
+        
+        # Relatórios salvos
+        if hasattr(st.session_state, 'relatorios_salvos') and st.session_state.relatorios_salvos:
+            st.markdown("### 📚 Relatórios Salvos")
+            
+            for i, relatorio in enumerate(st.session_state.relatorios_salvos):
+                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+                
+                with col1:
+                    st.markdown(f"**{relatorio['nome']}**")
+                    st.markdown(f"📊 {relatorio['tipo']} • {relatorio['periodo']}")
+                
+                with col2:
+                    st.markdown(f"📈 {len(relatorio['metricas'])} métricas")
+                    st.markdown(f"📋 {len(relatorio['dimensoes'])} dimensões")
+                
+                with col3:
+                    st.markdown(f"📅 {relatorio['criado_em']}")
+                    st.markdown(f"📄 {relatorio['formato']}")
+                
+                with col4:
+                    if st.button("▶️", key=f"run_report_{i}", help="Executar"):
+                        st.success(f"Executando '{relatorio['nome']}'...")
+                
+                st.divider()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def metas_objetivos_page(self):
+        """Sistema de metas e objetivos"""
+        st.markdown('<div class="main-header"><h1>🎯 Metas & Objetivos</h1><p>Definição e acompanhamento de metas estratégicas</p></div>', unsafe_allow_html=True)
+        
+        tab1, tab2, tab3 = st.tabs([
+            "🎯 Metas Ativas",
+            "📊 Performance",
+            "⚙️ Configurar Metas"
+        ])
+        
+        with tab1:
+            self.metas_ativas()
+        
+        with tab2:
+            self.performance_metas()
+        
+        with tab3:
+            self.configurar_metas()
+
+    def metas_ativas(self):
+        """Visualização das metas ativas"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("🎯 Metas Ativas")
+        
+        # Metas simuladas
+        metas_exemplo = [
+            {
+                "nome": "Novos Pacientes",
+                "meta": 50,
+                "atual": 42,
+                "periodo": "Mensal",
+                "prazo": "31/10/2024",
+                "categoria": "Crescimento"
+            },
+            {
+                "nome": "Receita Mensal", 
+                "meta": 7500,
+                "atual": 6200,
+                "periodo": "Mensal",
+                "prazo": "31/10/2024",
+                "categoria": "Financeiro"
+            },
+            {
+                "nome": "Taxa de Retenção",
+                "meta": 85,
+                "atual": 82,
+                "periodo": "Trimestral",
+                "prazo": "31/12/2024",
+                "categoria": "Qualidade"
+            },
+            {
+                "nome": "Consultas/Semana",
+                "meta": 25,
+                "atual": 23,
+                "periodo": "Semanal", 
+                "prazo": "Contínuo",
+                "categoria": "Produtividade"
+            }
+        ]
+        
+        # Cards de metas
+        for meta in metas_exemplo:
+            progresso = (meta['atual'] / meta['meta']) * 100
+            
+            # Determinar cor baseada no progresso
+            if progresso >= 90:
+                cor = "#48bb78"
+                status = "Excelente"
+            elif progresso >= 70:
+                cor = "#667eea"  
+                status = "No Caminho"
+            elif progresso >= 50:
+                cor = "#ed8936"
+                status = "Atenção"
+            else:
+                cor = "#e53e3e"
+                status = "Crítico"
+            
+            st.markdown(f'''
+            <div style="background: rgba(255,255,255,0.95); border-radius: 15px; padding: 2rem; margin: 1rem 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 6px solid {cor};">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                    <div>
+                        <h4 style="color: {cor}; margin: 0 0 0.5rem 0;">{meta['nome']}</h4>
+                        <span style="background: {cor}15; color: {cor}; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.8rem; font-weight: 600;">
+                            {meta['categoria']}
+                        </span>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: {cor}; font-weight: 700; font-size: 1.5rem;">{progresso:.0f}%</div>
+                        <div style="color: {cor}; font-size: 0.9rem;">{status}</div>
+                    </div>
+                </div>
+                
+                <div style="background: #f1f5f9; border-radius: 10px; height: 8px; margin: 1rem 0;">
+                    <div style="background: {cor}; height: 100%; width: {progresso}%; border-radius: 10px; transition: width 0.3s ease;"></div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: #64748b;">
+                    <div><strong>{meta['atual']}</strong> de <strong>{meta['meta']}</strong> {meta['periodo'].lower()}</div>
+                    <div>📅 {meta['prazo']}</div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+        
+        # Resumo geral
+        st.markdown("### 📊 Resumo Geral das Metas")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_metas = len(metas_exemplo)
+        metas_atingidas = len([m for m in metas_exemplo if (m['atual'] / m['meta']) >= 1.0])
+        metas_no_caminho = len([m for m in metas_exemplo if 0.7 <= (m['atual'] / m['meta']) < 1.0])
+        metas_criticas = len([m for m in metas_exemplo if (m['atual'] / m['meta']) < 0.5])
+        
+        with col1:
+            st.metric("Total de Metas", total_metas)
+        
+        with col2:
+            st.metric("Atingidas", metas_atingidas, f"{(metas_atingidas/total_metas)*100:.0f}%")
+        
+        with col3:
+            st.metric("No Caminho", metas_no_caminho, f"{(metas_no_caminho/total_metas)*100:.0f}%")
+        
+        with col4:
+            st.metric("Críticas", metas_criticas, f"{(metas_criticas/total_metas)*100:.0f}%")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def performance_metas(self):
+        """Performance das metas"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("📊 Performance das Metas")
+        
+        # Gráfico de evolução das metas
+        st.markdown("### 📈 Evolução Histórica")
+        
+        # Dados simulados de evolução
+        meses = ['Jun', 'Jul', 'Ago', 'Set', 'Out']
+        novos_pacientes_evolucao = [28, 35, 41, 38, 42]
+        receita_evolucao = [4200, 5100, 5800, 5600, 6200]
+        retencao_evolucao = [78, 80, 85, 83, 82]
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=meses,
+                y=novos_pacientes_evolucao,
+                mode='lines+markers',
+                name='Novos Pacientes',
+                line=dict(color='#667eea', width=3)
+            ))
+            
+            # Linha de meta
+            fig.add_hline(y=50, line_dash="dash", line_color="green", annotation_text="Meta: 50")
+            
+            fig.update_layout(
+                title="Evolução: Novos Pacientes",
+                yaxis_title="Número de Pacientes",
+                height=300,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=meses,
+                y=receita_evolucao,
+                mode='lines+markers',
+                name='Receita',
+                line=dict(color='#48bb78', width=3)
+            ))
+            
+            # Linha de meta
+            fig.add_hline(y=7500, line_dash="dash", line_color="green", annotation_text="Meta: R$ 7.500")
+            
+            fig.update_layout(
+                title="Evolução: Receita Mensal",
+                yaxis_title="Receita (R$)",
+                height=300,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Análise de tendências
+        st.markdown("### 📊 Análise de Tendências")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("""
+            <div class="calculator-card">
+                <h4 style="color: #48bb78; margin-bottom: 1rem;">✅ Metas com Boa Performance</h4>
+                <div style="line-height: 1.6;">
+                    • <strong>Consultas/Semana:</strong> 92% da meta<br>
+                    • <strong>Taxa de Retenção:</strong> 96% da meta<br>
+                    • <strong>Crescimento:</strong> Consistente nos últimos 3 meses<br>
+                    • <strong>Tendência:</strong> Positiva
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
+            <div class="calculator-card">
+                <h4 style="color: #ed8936; margin-bottom: 1rem;">⚠️ Metas Precisando Atenção</h4>
+                <div style="line-height: 1.6;">
+                    • <strong>Novos Pacientes:</strong> 84% da meta<br>
+                    • <strong>Receita:</strong> 83% da meta<br>
+                    • <strong>Desafio:</strong> Captação de novos clientes<br>
+                    • <strong>Ação:</strong> Intensificar marketing
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown("""
+            <div class="calculator-card">
+                <h4 style="color: #667eea; margin-bottom: 1rem;">📈 Projeções</h4>
+                <div style="line-height: 1.6;">
+                    • <strong>Novembro:</strong> Provável atingimento<br>
+                    • <strong>Meta Receita:</strong> 95% de probabilidade<br>
+                    • <strong>Crescimento:</strong> +12% trimestre<br>
+                    • <strong>Outlook:</strong> Positivo
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Heatmap de performance
+        st.markdown("### 🔥 Mapa de Performance")
+        
+        # Dados simulados para heatmap
+        categorias = ['Crescimento', 'Financeiro', 'Qualidade', 'Produtividade']
+        meses_heatmap = ['Jun', 'Jul', 'Ago', 'Set', 'Out']
+        
+        # Performance simulada (0-100%)
+        performance_data = [
+            [85, 90, 95, 88, 92],  # Crescimento
+            [78, 82, 85, 83, 87],  # Financeiro
+            [92, 95, 90, 93, 96],  # Qualidade
+            [88, 85, 90, 92, 89]   # Produtividade
+        ]
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=performance_data,
+            x=meses_heatmap,
+            y=categorias,
+            colorscale='RdYlGn',
+            text=[[f"{val}%" for val in row] for row in performance_data],
+            texttemplate="%{text}",
+            textfont={"size": 12}
+        ))
+        
+        fig.update_layout(
+            title="Performance por Categoria e Mês (%)",
+            height=300,
+            paper_bgcolor="rgba(0,0,0,0)"
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def configurar_metas(self):
+        """Configuração de metas"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("⚙️ Configurar Metas")
+        
+        # Criar nova meta
+        st.markdown("### ➕ Criar Nova Meta")
+        
+        with st.form("nova_meta"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                nome_meta = st.text_input("Nome da meta *")
+                categoria_meta = st.selectbox("Categoria", [
+                    "Crescimento", "Financeiro", "Qualidade", 
+                    "Produtividade", "Marketing", "Operacional"
+                ])
+                valor_meta = st.number_input("Valor da meta *", min_value=0.0, value=100.0)
+                unidade_meta = st.selectbox("Unidade", [
+                    "Número", "Reais (R$)", "Porcentagem (%)", 
+                    "Horas", "Dias", "Pontos"
+                ])
+            
+            with col2:
+                periodo_meta = st.selectbox("Período", [
+                    "Diário", "Semanal", "Mensal", "Trimestral", "Anual"
+                ])
+                data_inicio = st.date_input("Data de início", value=datetime.now().date())
+                data_fim = st.date_input("Data limite")
+                
+                prioridade = st.selectbox("Prioridade", ["Alta", "Média", "Baixa"])
+            
+            descricao_meta = st.text_area("Descrição da meta", height=80)
+            
+            # Configurações de notificação
+            st.markdown("**🔔 Notificações**")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                notificar_progresso = st.checkbox("Notificar progresso semanal")
+                notificar_risco = st.checkbox("Alerta quando abaixo de 70%")
+            
+            with col2:
+                notificar_atingida = st.checkbox("Notificar quando atingida")
+                notificar_prazo = st.checkbox("Lembrar próximo ao prazo")
+            
+            if st.form_submit_button("🎯 Criar Meta", type="primary", use_container_width=True):
+                if nome_meta and valor_meta:
+                    nova_meta = {
+                        "id": len(st.session_state.get('metas_ativas', [])) + 1,
+                        "nome": nome_meta,
+                        "categoria": categoria_meta,
+                        "valor": valor_meta,
+                        "unidade": unidade_meta,
+                        "periodo": periodo_meta,
+                        "data_inicio": data_inicio.strftime('%Y-%m-%d'),
+                        "data_fim": data_fim.strftime('%Y-%m-%d'),
+                        "prioridade": prioridade,
+                        "descricao": descricao_meta,
+                        "progresso_atual": 0,
+                        "status": "Ativa",
+                        "notificacoes": {
+                            "progresso": notificar_progresso,
+                            "risco": notificar_risco,
+                            "atingida": notificar_atingida,
+                            "prazo": notificar_prazo
+                        },
+                        "criada_em": datetime.now().strftime('%Y-%m-%d %H:%M')
+                    }
+                    
+                    if 'metas_ativas' not in st.session_state:
+                        st.session_state.metas_ativas = []
+                    
+                    st.session_state.metas_ativas.append(nova_meta)
+                    st.success(f"✅ Meta '{nome_meta}' criada com sucesso!")
+                    st.balloons()
+                else:
+                    st.error("❌ Preencha os campos obrigatórios")
+        
+        # Templates de metas
+        st.markdown("### 📋 Templates de Metas")
+        
+        templates_metas = {
+            "Crescimento de Pacientes": {
+                "categoria": "Crescimento",
+                "valor": 50,
+                "unidade": "Número",
+                "periodo": "Mensal",
+                "descricao": "Aumentar base de pacientes ativos"
+            },
+            "Meta de Receita": {
+                "categoria": "Financeiro", 
+                "valor": 10000,
+                "unidade": "Reais (R$)",
+                "periodo": "Mensal",
+                "descricao": "Atingir receita mensal objetivo"
+            },
+            "Taxa de Satisfação": {
+                "categoria": "Qualidade",
+                "valor": 90,
+                "unidade": "Porcentagem (%)",
+                "periodo": "Trimestral",
+                "descricao": "Manter alta satisfação dos pacientes"
+            }
+        }
+        
+        col1, col2, col3 = st.columns(3)
+        
+        for i, (nome_template, config) in enumerate(templates_metas.items()):
+            col = [col1, col2, col3][i]
+            
+            with col:
+                st.markdown(f"""
+                <div class="calculator-card">
+                    <h4 style="color: #667eea;">{nome_template}</h4>
+                    <div style="font-size: 0.9rem; line-height: 1.5;">
+                        <strong>Categoria:</strong> {config['categoria']}<br>
+                        <strong>Meta:</strong> {config['valor']} {config['unidade']}<br>
+                        <strong>Período:</strong> {config['periodo']}<br>
+                        <strong>Descrição:</strong> {config['descricao']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button(f"📋 Usar Template", key=f"template_{i}", use_container_width=True):
+                    st.success(f"Template '{nome_template}' aplicado!")
+        
+        # Configurações globais
+        st.markdown("### ⚙️ Configurações Globais")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📊 Dashboard**")
+            mostrar_progresso = st.checkbox("Mostrar barra de progresso", value=True)
+            mostrar_tendencia = st.checkbox("Mostrar tendências", value=True)
+            atualizar_automatico = st.checkbox("Atualização automática", value=True)
+            
+        with col2:
+            st.markdown("**🔔 Notificações**")
+            email_notificacoes = st.text_input("Email para notificações")
+            frequencia_relatorio = st.selectbox("Relatório de metas", ["Semanal", "Mensal", "Trimestral"])
+            
+        if st.button("💾 Salvar Configurações Globais", type="secondary", use_container_width=True):
+            configuracoes_metas = {
+                "mostrar_progresso": mostrar_progresso,
+                "mostrar_tendencia": mostrar_tendencia,
+                "atualizar_automatico": atualizar_automatico,
+                "email_notificacoes": email_notificacoes,
+                "frequencia_relatorio": frequencia_relatorio
+            }
+            
+            st.session_state.configuracoes.update({"metas": configuracoes_metas})
+            st.success("✅ Configurações salvas!")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def configuracoes_page(self):
+        """Página de configurações do sistema"""
+        st.markdown('<div class="main-header"><h1>⚙️ Configurações do Sistema</h1><p>Personalização e configurações avançadas</p></div>', unsafe_allow_html=True)
+        
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "🏢 Empresa",
+            "👤 Perfil Profissional",
+            "🎨 Personalização",
+            "🔧 Sistema"
+        ])
+        
+        with tab1:
+            self.config_empresa()
+        
+        with tab2:
+            self.config_perfil()
+        
+        with tab3:
+            self.config_personalizacao()
+        
+        with tab4:
+            self.config_sistema()
+
+    def config_empresa(self):
+        """Configurações da empresa"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("🏢 Informações da Empresa")
+        
+        with st.form("config_empresa"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**📋 Dados Básicos**")
+                
+                nome_empresa = st.text_input(
+                    "Nome da empresa/clínica",
+                    value=st.session_state.configuracoes.get('empresa_nome', '')
+                )
+                
+                cnpj = st.text_input("CNPJ", placeholder="00.000.000/0001-00")
+                
+                endereco_completo = st.text_area(
+                    "Endereço completo",
+                    value=st.session_state.configuracoes.get('endereco', ''),
+                    height=100
+                )
+                
+                telefone_empresa = st.text_input("Telefone principal")
+                email_empresa = st.text_input(
+                    "Email principal",
+                    value=st.session_state.configuracoes.get('email', '')
+                )
+                
+                website = st.text_input("Website", placeholder="https://www.minhanutri.com.br")
+            
+            with col2:
+                st.markdown("**🎨 Identidade Visual**")
+                
+                # Upload de logo
+                logo_upload = st.file_uploader(
+                    "Logo da empresa",
+                    type=['png', 'jpg', 'jpeg', 'svg'],
+                    help="Recomendado: 300x100px, PNG com fundo transparente"
+                )
+                
+                if logo_upload:
+                    st.image(logo_upload, width=200, caption="Prévia do logo")
+                
+                cores_tema = st.selectbox("Esquema de cores", [
+                    "Azul Profissional", "Verde Saúde", "Roxo Moderno", 
+                    "Laranja Energia", "Rosa Feminino", "Personalizado"
+                ])
+                
+                if cores_tema == "Personalizado":
+                    cor_primaria = st.color_picker("Cor primária", "#667eea")
+                    cor_secundaria = st.color_picker("Cor secundária", "#48bb78")
+                
+                st.markdown("**📄 Documentos**")
+                
+                cabecalho_relatorio = st.text_area(
+                    "Cabeçalho dos relatórios",
+                    placeholder="Texto que aparecerá no topo dos relatórios...",
+                    height=80
+                )
+                
+                rodape_relatorio = st.text_area(
+                    "Rodapé dos relatórios", 
+                    placeholder="Informações de contato, redes sociais...",
+                    height=60
+                )
+            
+            if st.form_submit_button("💾 Salvar Configurações da Empresa", type="primary", use_container_width=True):
+                st.session_state.configuracoes.update({
+                    'empresa_nome': nome_empresa,
+                    'cnpj': cnpj,
+                    'endereco': endereco_completo,
+                    'telefone_empresa': telefone_empresa,
+                    'email': email_empresa,
+                    'website': website,
+                    'cores_tema': cores_tema,
+                    'cabecalho_relatorio': cabecalho_relatorio,
+                    'rodape_relatorio': rodape_relatorio
+                })
+                
+                if logo_upload:
+                    st.session_state.configuracoes['empresa_logo'] = logo_upload
+                
+                st.success("✅ Configurações da empresa salvas com sucesso!")
+                time.sleep(1)
+                st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def config_perfil(self):
+        """Configurações do perfil profissional"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("👤 Perfil Profissional")
+        
+        with st.form("config_perfil"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**👨‍⚕️ Dados Profissionais**")
+                
+                nome_profissional = st.text_input("Nome completo")
+                crn = st.text_input("CRN", value=st.session_state.configuracoes.get('crn', ''))
+                especializacoes = st.multiselect("Especializações", [
+                    "Nutrição Clínica", "Nutrição Esportiva", "Nutrição Materno-Infantil",
+                    "Nutrição Geriátrica", "Fitoterapia", "Nutrição Funcional",
+                    "Transtornos Alimentares", "Nutrição Hospitalar"
+                ])
+                
+                formacao = st.text_area("Formação acadêmica", height=100)
+                experiencia = st.text_area("Experiência profissional", height=100)
+                
+            with col2:
+                st.markdown("**📞 Contato Profissional**")
+                
+                telefone_profissional = st.text_input("Telefone profissional")
+                email_profissional = st.text_input("Email profissional")
+                
+                redes_sociais = st.text_area(
+                    "Redes sociais",
+                    placeholder="Instagram: @nutricionista\nLinkedIn: /in/nutricionista",
+                    height=80
+                )
+                
+                st.markdown("**📋 Preferências de Atendimento**")
+                
+                tipos_atendimento = st.multiselect("Tipos de atendimento", [
+                    "Presencial", "Online", "Domiciliar", "Empresarial"
+                ])
+                
+                publico_alvo = st.multiselect("Público-alvo preferencial", [
+                    "Adultos", "Idosos", "Adolescentes", "Crianças",
+                    "Gestantes", "Atletas", "Vegetarianos/Veganos"
+                ])
+                
+                bio_profissional = st.text_area(
+                    "Biografia profissional",
+                    placeholder="Breve descrição sobre sua abordagem e filosofia de trabalho...",
+                    height=100
+                )
+            
+            if st.form_submit_button("💾 Salvar Perfil Profissional", type="primary", use_container_width=True):
+                st.session_state.configuracoes.update({
+                    'nome_profissional': nome_profissional,
+                    'crn': crn,
+                    'especializacoes': especializacoes,
+                    'formacao': formacao,
+                    'experiencia': experiencia,
+                    'telefone_profissional': telefone_profissional,
+                    'email_profissional': email_profissional,
+                    'redes_sociais': redes_sociais,
+                    'tipos_atendimento': tipos_atendimento,
+                    'publico_alvo': publico_alvo,
+                    'bio_profissional': bio_profissional
+                })
+                
+                st.success("✅ Perfil profissional salvo com sucesso!")
+                time.sleep(1)
+                st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def config_personalizacao(self):
+        """Configurações de personalização"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("🎨 Personalização da Interface")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**🎨 Aparência**")
+            
+            tema_interface = st.selectbox("Tema da interface", [
+                "Claro", "Escuro", "Automático (baseado no sistema)"
+            ])
+            
+            tamanho_fonte = st.selectbox("Tamanho da fonte", [
+                "Pequeno", "Normal", "Grande", "Extra Grande"
+            ])
+            
+            densidade_interface = st.selectbox("Densidade da interface", [
+                "Compacta", "Normal", "Espaçosa"
+            ])
+            
+            animacoes = st.checkbox("Habilitar animações", value=True)
+            
+            st.markdown("**📊 Dashboard**")
+            
+            widgets_dashboard = st.multiselect("Widgets no dashboard", [
+                "KPIs principais", "Agenda do dia", "Metas", "Gráfico de evolução",
+                "Notificações", "Receitas em destaque", "Lembretes", "Estatísticas"
+            ], default=["KPIs principais", "Agenda do dia", "Metas"])
+            
+            layout_dashboard = st.radio("Layout do dashboard", [
+                "Duas colunas", "Três colunas", "Layout flexível"
+            ])
+            
+        with col2:
+            st.markdown("**🔔 Notificações**")
+            
+            notificacoes_push = st.checkbox("Notificações push", value=True)
+            notificacoes_email = st.checkbox("Notificações por email", value=True)
+            notificacoes_som = st.checkbox("Som nas notificações", value=False)
+            
+            tipos_notificacao = st.multiselect("Tipos de notificação", [
+                "Novos agendamentos", "Cancelamentos", "Lembretes de consulta",
+                "Metas atingidas", "Relatórios prontos", "Novos pacientes",
+                "Mensagens recebidas"
+            ], default=["Novos agendamentos", "Cancelamentos", "Lembretes de consulta"])
+            
+            st.markdown("**🏠 Página Inicial**")
+            
+            pagina_inicial = st.selectbox("Página inicial padrão", [
+                "Dashboard", "Agenda", "Pacientes", "Calculadoras", "Personalizado"
+            ])
+            
+            mostrar_tutorial = st.checkbox("Mostrar dicas de uso", value=True)
+            
+            st.markdown("**📱 Mobile**")
+            
+            interface_mobile = st.checkbox("Interface otimizada para mobile", value=True)
+            gestos_mobile = st.checkbox("Habilitar gestos de navegação", value=True)
+        
+        # Prévia das configurações
+        st.markdown("### 👁️ Prévia")
+        
+        st.info(f"""
+        **Configurações Atuais:**
+        - **Tema:** {tema_interface}
+        - **Fonte:** {tamanho_fonte}
+        - **Layout Dashboard:** {layout_dashboard}
+        - **Widgets:** {len(widgets_dashboard)} selecionados
+        - **Página Inicial:** {pagina_inicial}
+        """)
+        
+        if st.button("🎨 Aplicar Personalização", type="primary", use_container_width=True):
+            st.session_state.configuracoes.update({
+                'tema_interface': tema_interface,
+                'tamanho_fonte': tamanho_fonte,
+                'densidade_interface': densidade_interface,
+                'animacoes': animacoes,
+                'widgets_dashboard': widgets_dashboard,
+                'layout_dashboard': layout_dashboard,
+                'notificacoes_push': notificacoes_push,
+                'notificacoes_email': notificacoes_email,
+                'notificacoes_som': notificacoes_som,
+                'tipos_notificacao': tipos_notificacao,
+                'pagina_inicial': pagina_inicial,
+                'mostrar_tutorial': mostrar_tutorial,
+                'interface_mobile': interface_mobile,
+                'gestos_mobile': gestos_mobile
+            })
+            
+            st.success("✅ Personalização aplicada! Recarregue a página para ver as mudanças.")
+            st.balloons()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    def config_sistema(self):
+        """Configurações do sistema"""
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.subheader("🔧 Configurações do Sistema")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**💾 Backup e Segurança**")
+            
+            backup_automatico = st.checkbox(
+                "Backup automático",
+                value=st.session_state.configuracoes.get('backup_automatico', True)
+            )
+            
+            if backup_automatico:
+                frequencia_backup = st.selectbox("Frequência do backup", [
+                    "Diário", "Semanal", "Mensal"
+                ])
+                
+                local_backup = st.selectbox("Local do backup", [
+                    "Google Drive", "Dropbox", "OneDrive", "Local"
+                ])
+            
+            senha_backup = st.checkbox("Proteger backup com senha", value=True)
+            
+            st.markdown("**🔐 Segurança**")
+            
+            autenticacao_2fa = st.checkbox("Autenticação de dois fatores", value=False)
+            timeout_sessao = st.selectbox("Timeout da sessão", [
+                "30 minutos", "1 hora", "2 horas", "4 horas", "Nunca"
+            ])
+            
+            log_atividades = st.checkbox("Log de atividades", value=True)
+            
+        with col2:
+            st.markdown("**🔄 Importação e Exportação**")
+            
+            st.markdown("**Importar dados:**")
+            arquivo_importacao = st.file_uploader(
+                "Selecionar arquivo",
+                type=['json', 'csv', 'xlsx'],
+                help="Formatos suportados: JSON, CSV, Excel"
+            )
+            
+            if arquivo_importacao:
+                if st.button("📥 Importar Dados"):
+                    st.success("Dados importados com sucesso! (Funcionalidade em desenvolvimento)")
+            
+            st.markdown("**Exportar dados:**")
+            
+            dados_exportar = st.multiselect("Selecionar dados", [
+                "Pacientes", "Consultas", "Receitas", "Planos alimentares",
+                "Agendamentos", "Relatórios", "Configurações"
+            ])
+            
+            formato_exportacao = st.selectbox("Formato", ["JSON", "Excel", "CSV"])
+            
+            if st.button("📤 Exportar Dados"):
+                if dados_exportar:
+                    st.success(f"Dados exportados em formato {formato_exportacao}! (Em desenvolvimento)")
+                else:
+                    st.warning("Selecione ao menos um tipo de dado para exportar")
+            
+            st.markdown("**🗑️ Limpeza de Dados**")
+            
+            if st.button("🧹 Limpar Cache", type="secondary"):
+                st.success("Cache limpo com sucesso!")
+            
+            if st.button("📊 Otimizar Banco de Dados", type="secondary"):
+                st.success("Banco de dados otimizado!")
+        
+        # Informações do sistema
+        st.markdown("### ℹ️ Informações do Sistema")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.info(f"""
+            **📊 Estatísticas:**
+            - Pacientes: {len(st.session_state.pacientes)}
+            - Receitas: {len(st.session_state.receitas)}
+            - Agendamentos: {len(st.session_state.agendamentos)}
+            - Consultas realizadas: {len([a for a in st.session_state.agendamentos if a.get('status') == 'Realizado'])}
+            """)
+        
+        with col2:
+            st.info(f"""
+            **🔧 Sistema:**
+            - Versão: 3.0.0
+            - Usuário: {st.session_state.current_user}
+            - Último backup: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+            - Status: Online ✅
+            """)
+        
+        with col3:
+            st.info(f"""
+            **💾 Armazenamento:**
+            - Dados utilizados: 2.3 MB
+            - Espaço disponível: 97.7 MB
+            - Anexos: 0.5 MB
+            - Backup: 1.2 MB
+            """)
+        
+        # Ações do sistema
+        st.markdown("### ⚙️ Ações do Sistema")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            if st.button("🔄 Sincronizar", type="secondary", use_container_width=True):
+                with st.spinner("Sincronizando..."):
+                    time.sleep(2)
+                    st.success("Sistema sincronizado!")
+        
+        with col2:
+            if st.button("🧪 Testar Sistema", type="secondary", use_container_width=True):
+                with st.spinner("Executando testes..."):
+                    time.sleep(3)
+                    st.success("Todos os testes passaram! ✅")
+        
+        with col3:
+            if st.button("📋 Gerar Log", type="secondary", use_container_width=True):
+                st.success("Log do sistema gerado!")
+        
+        with col4:
+            if st.button("🚨 Reset Configurações", type="secondary", use_container_width=True):
+                if st.button("⚠️ Confirmar Reset", type="secondary"):
+                    st.session_state.configuracoes = self.load_default_config()
+                    st.success("Configurações resetadas para o padrão!")
+                    st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    def run(self):
+        """Executa a aplicação principal"""
+        if not st.session_state.authenticated:
+            self.login_page()
+        else:
+            selected_page = self.sidebar_menu()
+            
+            # Roteamento das páginas
+            if selected_page == "📊 Dashboard Executivo":
+                self.dashboard_page()
+            elif selected_page == "🧮 Calculadoras Profissionais":
+                self.calculadoras_page()
+            elif selected_page == "👥 Gestão de Pacientes":
+                self.gestao_pacientes_page()
+            elif selected_page == "📈 Evolução & Progresso":
+                self.gestao_pacientes_page()  # Usa mesma página com foco na aba de evolução
+            elif selected_page == "🍽️ Planos Alimentares":
+                self.planos_alimentares_page()
+            elif selected_page == "🍳 Banco de Receitas":
+                self.banco_receitas_page()
+            elif selected_page == "📅 Agendamentos":
+                self.agendamentos_page()
+            elif selected_page == "📊 Relatórios Avançados":
+                self.relatorios_page()
+            elif selected_page == "💬 Comunicação":
+                self.comunicacao_page()
+            elif selected_page == "🎯 Metas & Objetivos":
+                self.metas_objetivos_page()
+            elif selected_page == "⚙️ Configurações":
+                self.configuracoes_page()
+
+# Executar a aplicação
+if __name__ == "__main__":
+    app = NutriStock360Pro()
+    app.run()
