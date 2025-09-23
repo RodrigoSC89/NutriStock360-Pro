@@ -696,13 +696,13 @@ def show_backup_options():
                 'records': 1247  # Simulado
             }
             
-            st.success(f"""
-            ✅ **Backup criado com sucesso!**
+                            st.success(f"""
+            **Backup criado com sucesso!**
             
-            📁 **Arquivo:** backup_{backup_info['timestamp']}.sql  
-            📊 **Tamanho:** {backup_info['size']}  
-            🗃️ **Tabelas:** {backup_info['tables']}  
-            📝 **Registros:** {backup_info['records']}  
+            **Arquivo:** backup_{backup_info['timestamp']}.sql  
+            **Tamanho:** {backup_info['size']}  
+            **Tabelas:** {backup_info['tables']}  
+            **Registros:** {backup_info['records']}  
             """)
 
 def show_restore_options():
@@ -762,7 +762,7 @@ def show_restore_options():
     
     safety_check = st.text_input("Digite 'CONFIRMAR RESTORE' para prosseguir:")
     
-    if st.button("🔄 Iniciar Restauração", disabled=(safety_check != "CONFIRMAR RESTORE")):
+                if st.button("Iniciar Restauração", disabled=(safety_check != "CONFIRMAR RESTORE")):
         if safety_check == "CONFIRMAR RESTORE":
             with st.spinner("Restaurando backup..."):
                 import time
@@ -785,8 +785,8 @@ def show_restore_options():
                     progress_bar.progress(progress)
                     time.sleep(1)
                 
-                st.success("✅ Backup restaurado com sucesso!")
-                st.info("🔄 O sistema será reiniciado para aplicar as alterações.")
+                st.success("Backup restaurado com sucesso!")
+                st.info("O sistema será reiniciado para aplicar as alterações.")
 
 def show_backup_history():
     """Histórico de backups"""
