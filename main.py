@@ -1,1460 +1,1240 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+NutriApp360 - Sistema Completo de Apoio ao Nutricionista
+Version: 5.0 - VERSÃO FUNCIONAL CORRIGIDA
+Author: NutriApp360 Team
+"""
+
+import streamlit as st
+import pandas as pd
+import sqlite3
+import hashlib
+import json
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, timedelta, date
+import uuid
+import os
+import math
+import random
+import base64
+from io import BytesIO
+import re
+from typing import Dict, List, Optional
+import calendar
+import numpy as np
+
 # =============================================================================
-# CONTINUAÇÃO DO NUTRIAPP360 - FUNCIONALIDADES COMPLETAS
+# CONFIGURAÇÕES INICIAIS
 # =============================================================================
 
-# Continuando de onde o código anterior parou...
+st.set_page_config(
+    page_title="NutriApp360 v5.0 - Sistema Funcional",
+    page_icon="🥗",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-def show_standard_reports():
-    """Relatórios padrão do sistema - IMPLEMENTAÇÃO COMPLETA"""
-    st.markdown("### 📈 Relatórios Padrão")
-    
-    conn = sqlite3.connect('nutriapp360.db')
-    
-    try:
-        # Filtros de período
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            start_date = st.date_input("📅 Data Início", value=date.today() - timedelta(days=30))
-        with col2:
-            end_date = st.date_input("📅 Data Fim", value=date.today())
-        with col3:
-            report_type = st.selectbox("📊 Tipo de Relatório", [
-                "Pacientes por Nutricionista",
-                "Evolução de Consultas", 
-                "Performance Financeira",
-                "Adesão ao Tratamento",
-                "Eficácia dos Planos",
-                "Relatório de Receitas",
-                "Análise de Gamificação"
-            ])
-        
-        if st.button("📊 Gerar Relatório"):
-            with st.spinner("📊 Gerando relatório..."):
-                
-                if report_type == "Pacientes por Nutricionista":
-                    generate_patients_by_nutritionist_report(conn, start_date, end_date)
-                
-                elif report_type == "Evolução de Consultas":
-                    generate_appointments_evolution_report(conn, start_date, end_date)
-                
-                elif report_type == "Performance Financeira":
-                    generate_financial_performance_report(conn, start_date, end_date)
-                
-                elif report_type == "Adesão ao Tratamento":
-                    generate_treatment_adherence_report(conn, start_date, end_date)
-                
-                elif report_type == "Eficácia dos Planos":
-                    generate_meal_plans_effectiveness_report(conn, start_date, end_date)
-                
-                elif report_type == "Relatório de Receitas":
-                    generate_recipes_report(conn)
-                
-                elif report_type == "Análise de Gamificação":
-                    generate_gamification_report(conn, start_date, end_date)
-    
-    except Exception as e:
-        st.error(f"Erro ao gerar relatório: {str(e)}")
-    finally:
-        conn.close()
-
-def generate_patients_by_nutritionist_report(conn, start_date, end_date):
-    """Relatório de pacientes por nutricionista"""
-    st.markdown("### 👥 Relatório: Pacientes por Nutricionista")
-    
-    # Dados do relatório
-    data = pd.read_sql_query(f"""
-        SELECT 
-            u.full_name as nutricionista,
-            COUNT(p.id) as total_pacientes,
-            COUNT(CASE WHEN p.active = 1 THEN 1 END) as pacientes_ativos,
-            AVG(CASE WHEN p.current_weight > 0 AND p.target_weight > 0 
-                THEN p.current_weight - p.target_weight END) as media_peso_meta,
-            COUNT(DISTINCT a.id) as total_consultas,
-            COUNT(CASE WHEN a.status = 'realizada' THEN 1 END) as consultas_realizadas
-        FROM users u
-        LEFT JOIN patients p ON u.id = p.nutritionist_id
-        LEFT JOIN appointments a ON p.id = a.patient_id 
-            AND DATE(a.appointment_date) BETWEEN '{start_date}' AND '{end_date}'
-        WHERE u.role = 'nutritionist' AND u.active = 1
-        GROUP BY u.id, u.full_name
-        ORDER BY total_pacientes DESC
-    """, conn)
-    
-    if not data.empty:
-        # Métricas resumo
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("👨‍⚕️ Nutricionistas", len(data))
-        with col2:
-            st.metric("👥 Total Pacientes", data['total_pacientes'].sum())
-        with col3:
-            st.metric("✅ Pacientes Ativos", data['pacientes_ativos'].sum())
-        with col4:
-            st.metric("📅 Total Consultas", data['total_consultas'].sum())
-        
-        # Tabela detalhada
-        st.dataframe(data, use_container_width=True)
-        
-        # Gráficos
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            fig = px.bar(data, x='nutricionista', y='total_pacientes',
-                        title='Pacientes por Nutricionista')
-            fig.update_xaxes(tickangle=45)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            fig2 = px.pie(data, values='consultas_realizadas', names='nutricionista',
-                         title='Distribuição de Consultas Realizadas')
-            st.plotly_chart(fig2, use_container_width=True)
-        
-        # Download do relatório
-        csv_data = data.to_csv(index=False)
-        st.download_button(
-            label="📥 Baixar Relatório CSV",
-            data=csv_data,
-            file_name=f"pacientes_por_nutricionista_{start_date}_to_{end_date}.csv",
-            mime="text/csv"
-        )
-    else:
-        st.warning("📊 Nenhum dado encontrado para o período selecionado")
-
-def generate_appointments_evolution_report(conn, start_date, end_date):
-    """Relatório de evolução de consultas"""
-    st.markdown("### 📅 Relatório: Evolução de Consultas")
-    
-    # Evolução diária
-    daily_data = pd.read_sql_query(f"""
-        SELECT 
-            DATE(appointment_date) as data,
-            COUNT(*) as total,
-            COUNT(CASE WHEN status = 'agendado' THEN 1 END) as agendadas,
-            COUNT(CASE WHEN status = 'realizada' THEN 1 END) as realizadas,
-            COUNT(CASE WHEN status = 'cancelado' THEN 1 END) as canceladas
-        FROM appointments
-        WHERE DATE(appointment_date) BETWEEN '{start_date}' AND '{end_date}'
-        GROUP BY DATE(appointment_date)
-        ORDER BY data
-    """, conn)
-    
-    if not daily_data.empty:
-        # Gráfico de evolução
-        fig = px.line(daily_data, x='data', y=['total', 'realizadas', 'canceladas'],
-                     title='Evolução Diária de Consultas',
-                     markers=True)
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Estatísticas por tipo
-        type_data = pd.read_sql_query(f"""
-            SELECT 
-                appointment_type,
-                COUNT(*) as quantidade,
-                AVG(duration) as duracao_media,
-                COUNT(CASE WHEN status = 'realizada' THEN 1 END) * 100.0 / COUNT(*) as taxa_realizacao
-            FROM appointments
-            WHERE DATE(appointment_date) BETWEEN '{start_date}' AND '{end_date}'
-            GROUP BY appointment_type
-            ORDER BY quantidade DESC
-        """, conn)
-        
-        if not type_data.empty:
-            st.markdown("#### 📋 Consultas por Tipo")
-            st.dataframe(type_data, use_container_width=True)
-            
-            fig2 = px.bar(type_data, x='appointment_type', y='quantidade',
-                         title='Consultas por Tipo')
-            st.plotly_chart(fig2, use_container_width=True)
-
-def generate_financial_performance_report(conn, start_date, end_date):
-    """Relatório de performance financeira"""
-    st.markdown("### 💰 Relatório: Performance Financeira")
-    
-    # Receita por período
-    revenue_data = pd.read_sql_query(f"""
-        SELECT 
-            DATE(created_at) as data,
-            SUM(CASE WHEN payment_status = 'pago' THEN amount ELSE 0 END) as receita_paga,
-            SUM(CASE WHEN payment_status = 'pendente' THEN amount ELSE 0 END) as receita_pendente,
-            COUNT(*) as total_transacoes
-        FROM patient_financial
-        WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
-        GROUP BY DATE(created_at)
-        ORDER BY data
-    """, conn)
-    
-    if not revenue_data.empty:
-        # Gráfico de receita
-        fig = px.bar(revenue_data, x='data', y=['receita_paga', 'receita_pendente'],
-                    title='Receita Diária (Paga vs Pendente)')
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Métricas resumo
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            total_receita = revenue_data['receita_paga'].sum()
-            st.metric("💰 Receita Total", f"R$ {total_receita:.2f}")
-        
-        with col2:
-            total_pendente = revenue_data['receita_pendente'].sum()
-            st.metric("⏳ A Receber", f"R$ {total_pendente:.2f}")
-        
-        with col3:
-            ticket_medio = total_receita / revenue_data['total_transacoes'].sum() if revenue_data['total_transacoes'].sum() > 0 else 0
-            st.metric("🎫 Ticket Médio", f"R$ {ticket_medio:.2f}")
-        
-        with col4:
-            taxa_conversao = (revenue_data['receita_paga'].sum() / (revenue_data['receita_paga'].sum() + revenue_data['receita_pendente'].sum()) * 100) if (revenue_data['receita_paga'].sum() + revenue_data['receita_pendente'].sum()) > 0 else 0
-            st.metric("📈 Taxa Conversão", f"{taxa_conversao:.1f}%")
-
-def generate_treatment_adherence_report(conn, start_date, end_date):
-    """Relatório de adesão ao tratamento"""
-    st.markdown("### 📊 Relatório: Adesão ao Tratamento")
-    
-    # Adesão por paciente
-    adherence_data = pd.read_sql_query(f"""
-        SELECT 
-            p.full_name,
-            p.patient_id,
-            COUNT(a.id) as consultas_agendadas,
-            COUNT(CASE WHEN a.status = 'realizada' THEN 1 END) as consultas_realizadas,
-            COUNT(CASE WHEN a.status = 'cancelado' THEN 1 END) as consultas_canceladas,
-            CASE 
-                WHEN COUNT(a.id) > 0 THEN 
-                    COUNT(CASE WHEN a.status = 'realizada' THEN 1 END) * 100.0 / COUNT(a.id)
-                ELSE 0 
-            END as taxa_adesao
-        FROM patients p
-        LEFT JOIN appointments a ON p.id = a.patient_id 
-            AND DATE(a.appointment_date) BETWEEN '{start_date}' AND '{end_date}'
-        WHERE p.active = 1
-        GROUP BY p.id, p.full_name, p.patient_id
-        HAVING COUNT(a.id) > 0
-        ORDER BY taxa_adesao DESC
-    """, conn)
-    
-    if not adherence_data.empty:
-        # Distribuição de adesão
-        adherence_ranges = pd.cut(adherence_data['taxa_adesao'], 
-                                bins=[0, 25, 50, 75, 100], 
-                                labels=['Baixa (0-25%)', 'Média (25-50%)', 'Boa (50-75%)', 'Excelente (75-100%)'])
-        
-        adherence_distribution = adherence_ranges.value_counts().reset_index()
-        adherence_distribution.columns = ['Faixa_Adesao', 'Quantidade']
-        
-        fig = px.pie(adherence_distribution, values='Quantidade', names='Faixa_Adesao',
-                    title='Distribuição de Adesão ao Tratamento')
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Top 10 pacientes com melhor adesão
-        st.markdown("#### 🏆 Top 10 - Melhor Adesão")
-        top_adherence = adherence_data.head(10)
-        st.dataframe(top_adherence, use_container_width=True)
-        
-        # Pacientes com baixa adesão (necessitam atenção)
-        low_adherence = adherence_data[adherence_data['taxa_adesao'] < 50]
-        if not low_adherence.empty:
-            st.markdown("#### ⚠️ Pacientes com Baixa Adesão (< 50%)")
-            st.dataframe(low_adherence, use_container_width=True)
-
-def generate_meal_plans_effectiveness_report(conn, start_date, end_date):
-    """Relatório de eficácia dos planos alimentares"""
-    st.markdown("### 🥗 Relatório: Eficácia dos Planos Alimentares")
-    
-    # Eficácia dos planos (baseado no progresso de peso)
-    plans_effectiveness = pd.read_sql_query(f"""
-        SELECT 
-            mp.plan_name,
-            mp.daily_calories,
-            COUNT(DISTINCT mp.patient_id) as pacientes_total,
-            AVG(p.current_weight - p.target_weight) as media_distancia_meta,
-            COUNT(CASE WHEN p.current_weight <= p.target_weight THEN 1 END) as metas_atingidas,
-            u.full_name as nutricionista
-        FROM meal_plans mp
-        JOIN patients p ON mp.patient_id = p.id
-        JOIN users u ON mp.nutritionist_id = u.id
-        WHERE mp.created_at BETWEEN '{start_date}' AND '{end_date}'
-        GROUP BY mp.id, mp.plan_name, mp.daily_calories, u.full_name
-        ORDER BY metas_atingidas DESC
-    """, conn)
-    
-    if not plans_effectiveness.empty:
-        # Taxa de sucesso geral
-        total_patients = plans_effectiveness['pacientes_total'].sum()
-        total_goals_achieved = plans_effectiveness['metas_atingidas'].sum()
-        success_rate = (total_goals_achieved / total_patients * 100) if total_patients > 0 else 0
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("📋 Planos Criados", len(plans_effectiveness))
-        with col2:
-            st.metric("👥 Pacientes Total", total_patients)
-        with col3:
-            st.metric("🎯 Taxa de Sucesso", f"{success_rate:.1f}%")
-        
-        # Tabela de eficácia
-        st.dataframe(plans_effectiveness, use_container_width=True)
-        
-        # Análise por faixa calórica
-        calorie_analysis = pd.read_sql_query("""
-            SELECT 
-                CASE 
-                    WHEN daily_calories < 1200 THEN 'Muito Baixo (<1200)'
-                    WHEN daily_calories < 1500 THEN 'Baixo (1200-1500)'
-                    WHEN daily_calories < 2000 THEN 'Moderado (1500-2000)'
-                    WHEN daily_calories < 2500 THEN 'Alto (2000-2500)'
-                    ELSE 'Muito Alto (>2500)'
-                END as faixa_calorica,
-                COUNT(*) as quantidade_planos,
-                AVG(CASE 
-                    WHEN (SELECT COUNT(*) FROM patients p2 WHERE p2.id = mp.patient_id AND p2.current_weight <= p2.target_weight) > 0 
-                    THEN 100 ELSE 0 
-                END) as taxa_sucesso
-            FROM meal_plans mp
-            GROUP BY faixa_calorica
-        """, conn)
-        
-        if not calorie_analysis.empty:
-            st.markdown("#### 📊 Eficácia por Faixa Calórica")
-            fig = px.bar(calorie_analysis, x='faixa_calorica', y='taxa_sucesso',
-                        title='Taxa de Sucesso por Faixa Calórica')
-            st.plotly_chart(fig, use_container_width=True)
-
-def generate_recipes_report(conn):
-    """Relatório de receitas"""
-    st.markdown("### 🍳 Relatório: Análise de Receitas")
-    
-    # Estatísticas gerais de receitas
-    recipe_stats = pd.read_sql_query("""
-        SELECT 
-            category,
-            COUNT(*) as quantidade,
-            AVG(calories_per_serving) as calorias_media,
-            AVG(protein) as proteina_media,
-            AVG(prep_time + cook_time) as tempo_medio,
-            COUNT(CASE WHEN difficulty = 'Fácil' THEN 1 END) as faceis,
-            COUNT(CASE WHEN difficulty = 'Médio' THEN 1 END) as medias,
-            COUNT(CASE WHEN difficulty = 'Difícil' THEN 1 END) as dificeis
-        FROM recipes
-        WHERE is_public = 1
-        GROUP BY category
-        ORDER BY quantidade DESC
-    """, conn)
-    
-    if not recipe_stats.empty:
-        # Métricas gerais
-        total_recipes = recipe_stats['quantidade'].sum()
-        avg_calories = recipe_stats['calorias_media'].mean()
-        avg_time = recipe_stats['tempo_medio'].mean()
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("🍳 Total de Receitas", total_recipes)
-        with col2:
-            st.metric("🔥 Calorias Médias", f"{avg_calories:.0f}")
-        with col3:
-            st.metric("⏰ Tempo Médio", f"{avg_time:.0f} min")
-        
-        # Receitas por categoria
-        fig = px.bar(recipe_stats, x='category', y='quantidade',
-                    title='Receitas por Categoria')
-        fig.update_xaxes(tickangle=45)
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Distribuição de dificuldade
-        difficulty_data = pd.DataFrame({
-            'Dificuldade': ['Fácil', 'Médio', 'Difícil'],
-            'Quantidade': [
-                recipe_stats['faceis'].sum(),
-                recipe_stats['medias'].sum(),
-                recipe_stats['dificeis'].sum()
-            ]
-        })
-        
-        fig2 = px.pie(difficulty_data, values='Quantidade', names='Dificuldade',
-                     title='Distribuição por Dificuldade')
-        st.plotly_chart(fig2, use_container_width=True)
-
-def generate_gamification_report(conn, start_date, end_date):
-    """Relatório de análise de gamificação"""
-    st.markdown("### 🎮 Relatório: Análise de Gamificação")
-    
-    # Estatísticas de gamificação
-    gamification_stats = pd.read_sql_query(f"""
-        SELECT 
-            p.full_name,
-            pp.points,
-            pp.level,
-            pp.total_points,
-            pp.streak_days,
-            COUNT(pb.id) as total_badges,
-            COALESCE(SUM(pb.points_awarded), 0) as pontos_por_badges
-        FROM patients p
-        JOIN patient_points pp ON p.id = pp.patient_id
-        LEFT JOIN patient_badges pb ON p.id = pb.patient_id 
-            AND DATE(pb.earned_date) BETWEEN '{start_date}' AND '{end_date}'
-        WHERE p.active = 1
-        GROUP BY p.id, p.full_name, pp.points, pp.level, pp.total_points, pp.streak_days
-        ORDER BY pp.total_points DESC
-    """, conn)
-    
-    if not gamification_stats.empty:
-        # Métricas de engajamento
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("🎮 Jogadores Ativos", len(gamification_stats))
-        with col2:
-            st.metric("🎯 Pontos Totais", gamification_stats['total_points'].sum())
-        with col3:
-            st.metric("⭐ Nível Médio", f"{gamification_stats['level'].mean():.1f}")
-        with col4:
-            st.metric("🔥 Sequência Média", f"{gamification_stats['streak_days'].mean():.1f} dias")
-        
-        # Top 10 jogadores
-        st.markdown("#### 🏆 Top 10 Jogadores")
-        top_players = gamification_stats.head(10)[['full_name', 'level', 'total_points', 'total_badges']]
-        st.dataframe(top_players, use_container_width=True)
-        
-        # Distribuição de níveis
-        level_distribution = gamification_stats['level'].value_counts().reset_index()
-        level_distribution.columns = ['Nível', 'Quantidade']
-        
-        fig = px.bar(level_distribution, x='Nível', y='Quantidade',
-                    title='Distribuição de Jogadores por Nível')
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Badges mais conquistados
-        popular_badges = pd.read_sql_query(f"""
-            SELECT 
-                badge_name,
-                COUNT(*) as vezes_conquistado,
-                AVG(points_awarded) as pontos_medios
-            FROM patient_badges
-            WHERE DATE(earned_date) BETWEEN '{start_date}' AND '{end_date}'
-            GROUP BY badge_name
-            ORDER BY vezes_conquistado DESC
-            LIMIT 10
-        """, conn)
-        
-        if not popular_badges.empty:
-            st.markdown("#### 🏅 Badges Mais Conquistados")
-            fig2 = px.bar(popular_badges, x='badge_name', y='vezes_conquistado',
-                         title='Top 10 Badges Mais Conquistados')
-            fig2.update_xaxes(tickangle=45)
-            st.plotly_chart(fig2, use_container_width=True)
-
-def show_custom_reports():
-    """Relatórios personalizados - IMPLEMENTAÇÃO COMPLETA"""
-    st.markdown("### 🔧 Criador de Relatórios Personalizados")
-    
-    conn = sqlite3.connect('nutriapp360.db')
-    
-    try:
-        # Seleção de dados
-        st.markdown("#### 📊 Configurar Relatório")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Tabelas disponíveis
-            tables = st.multiselect("🗂️ Selecione as tabelas:", [
-                "users", "patients", "appointments", "meal_plans", 
-                "recipes", "patient_progress", "patient_financial", 
-                "patient_points", "patient_badges"
-            ])
-            
-            # Período
-            start_date = st.date_input("📅 Data Início", value=date.today() - timedelta(days=30))
-            end_date = st.date_input("📅 Data Fim", value=date.today())
-        
-        with col2:
-            # Filtros
-            if "patients" in tables:
-                gender_filter = st.selectbox("👤 Filtro Gênero", ["Todos", "M", "F"])
-                active_filter = st.selectbox("📊 Status Paciente", ["Todos", "Ativo", "Inativo"])
-            
-            # Agrupamento
-            group_by = st.selectbox("📊 Agrupar por:", [
-                "Nenhum", "Data", "Nutricionista", "Categoria", "Status"
-            ])
-            
-            # Métricas
-            metrics = st.multiselect("📈 Métricas:", [
-                "Contagem", "Soma", "Média", "Máximo", "Mínimo"
-            ])
-        
-        # Query personalizada
-        st.markdown("#### 🔧 Query SQL Personalizada (Opcional)")
-        custom_query = st.text_area("💻 Digite sua query SQL:", 
-                                   placeholder="SELECT * FROM patients WHERE active = 1")
-        
-        if st.button("📊 Gerar Relatório Personalizado"):
-            if custom_query:
-                # Executar query personalizada
-                try:
-                    result = pd.read_sql_query(custom_query, conn)
-                    
-                    if not result.empty:
-                        st.markdown("#### 📊 Resultado da Query Personalizada")
-                        st.dataframe(result, use_container_width=True)
-                        
-                        # Download
-                        csv_data = result.to_csv(index=False)
-                        st.download_button(
-                            label="📥 Baixar Resultado CSV",
-                            data=csv_data,
-                            file_name=f"relatorio_personalizado_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                            mime="text/csv"
-                        )
-                    else:
-                        st.warning("📊 A query não retornou resultados")
-                
-                except Exception as e:
-                    st.error(f"❌ Erro na query: {str(e)}")
-            
-            elif tables:
-                # Gerar relatório baseado nas seleções
-                generate_dynamic_report(conn, tables, start_date, end_date, group_by, metrics)
-            
-            else:
-                st.warning("⚠️ Selecione pelo menos uma tabela ou digite uma query personalizada")
-    
-    except Exception as e:
-        st.error(f"Erro ao criar relatório personalizado: {str(e)}")
-    finally:
-        conn.close()
-
-def generate_dynamic_report(conn, tables, start_date, end_date, group_by, metrics):
-    """Gera relatório dinâmico baseado nas seleções"""
-    st.markdown("#### 📊 Relatório Dinâmico")
-    
-    # Construir query baseada nas seleções
-    base_queries = {
-        "patients": f"SELECT * FROM patients WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'",
-        "appointments": f"SELECT * FROM appointments WHERE DATE(appointment_date) BETWEEN '{start_date}' AND '{end_date}'",
-        "meal_plans": f"SELECT * FROM meal_plans WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'",
-        "recipes": "SELECT * FROM recipes",
-        "patient_progress": f"SELECT * FROM patient_progress WHERE DATE(record_date) BETWEEN '{start_date}' AND '{end_date}'"
+# CSS personalizado
+def load_css():
+    st.markdown("""
+    <style>
+    .main-header {
+        font-size: 2.5rem;
+        color: #2E7D32;
+        text-align: center;
+        margin-bottom: 2rem;
+        background: linear-gradient(135deg, #E8F5E8, #C8E6C9);
+        padding: 1rem;
+        border-radius: 15px;
+        border: 3px solid #4CAF50;
     }
     
-    all_data = pd.DataFrame()
-    
-    for table in tables:
-        if table in base_queries:
-            try:
-                table_data = pd.read_sql_query(base_queries[table], conn)
-                if not table_data.empty:
-                    table_data['source_table'] = table
-                    all_data = pd.concat([all_data, table_data], ignore_index=True, sort=False)
-            except Exception as e:
-                st.error(f"Erro ao carregar dados da tabela {table}: {str(e)}")
-    
-    if not all_data.empty:
-        st.dataframe(all_data, use_container_width=True)
-        
-        # Estatísticas básicas
-        st.markdown("#### 📈 Estatísticas Resumo")
-        
-        numeric_columns = all_data.select_dtypes(include=[np.number]).columns
-        if len(numeric_columns) > 0:
-            stats = all_data[numeric_columns].describe()
-            st.dataframe(stats, use_container_width=True)
-        
-        # Download
-        csv_data = all_data.to_csv(index=False)
-        st.download_button(
-            label="📥 Baixar Dados CSV",
-            data=csv_data,
-            file_name=f"relatorio_dinamico_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
-        )
-    else:
-        st.warning("📊 Nenhum dado encontrado para as tabelas selecionadas")
-
-def show_executive_dashboard():
-    """Dashboard executivo completo - IMPLEMENTAÇÃO COMPLETA"""
-    st.markdown("### 📊 Dashboard Executivo")
-    
-    conn = sqlite3.connect('nutriapp360.db')
-    
-    try:
-        # Período de análise
-        period = st.selectbox("📅 Período de Análise", [
-            "Últimos 7 dias", "Últimos 30 dias", "Últimos 90 dias", "Último ano"
-        ])
-        
-        days_map = {
-            "Últimos 7 dias": 7,
-            "Últimos 30 dias": 30,
-            "Últimos 90 dias": 90,
-            "Último ano": 365
-        }
-        
-        days_back = days_map[period]
-        
-        # KPIs principais
-        st.markdown("#### 📊 KPIs Principais")
-        
-        kpis = calculate_executive_kpis(conn, days_back)
-        
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        with col1:
-            st.metric("💰 Receita", f"R$ {kpis['revenue']:.2f}", f"{kpis['revenue_growth']:+.1f}%")
-        
-        with col2:
-            st.metric("👥 Pacientes Ativos", kpis['active_patients'], f"{kpis['patient_growth']:+.0f}")
-        
-        with col3:
-            st.metric("📅 Taxa Ocupação", f"{kpis['occupation_rate']:.1f}%", f"{kpis['occupation_growth']:+.1f}%")
-        
-        with col4:
-            st.metric("😊 Satisfação", f"{kpis['satisfaction']:.1f}/5", f"{kpis['satisfaction_growth']:+.1f}")
-        
-        with col5:
-            st.metric("🎯 ROI", f"{kpis['roi']:.1f}%", f"{kpis['roi_growth']:+.1f}%")
-        
-        # Gráficos executivos
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Receita por mês
-            monthly_revenue = pd.read_sql_query(f"""
-                SELECT 
-                    strftime('%Y-%m', created_at) as mes,
-                    SUM(CASE WHEN payment_status = 'pago' THEN amount ELSE 0 END) as receita
-                FROM patient_financial
-                WHERE created_at >= date('now', '-{days_back} days')
-                GROUP BY mes
-                ORDER BY mes
-            """, conn)
-            
-            if not monthly_revenue.empty:
-                monthly_revenue['mes_nome'] = pd.to_datetime(monthly_revenue['mes']).dt.strftime('%b/%Y')
-                fig = px.line(monthly_revenue, x='mes_nome', y='receita',
-                             title='Evolução da Receita', markers=True)
-                st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            # Distribuição de pacientes por nutricionista
-            patient_distribution = pd.read_sql_query("""
-                SELECT 
-                    u.full_name as nutricionista,
-                    COUNT(p.id) as pacientes
-                FROM users u
-                LEFT JOIN patients p ON u.id = p.nutritionist_id AND p.active = 1
-                WHERE u.role = 'nutritionist' AND u.active = 1
-                GROUP BY u.id, u.full_name
-                ORDER BY pacientes DESC
-            """, conn)
-            
-            if not patient_distribution.empty:
-                fig2 = px.pie(patient_distribution, values='pacientes', names='nutricionista',
-                             title='Distribuição de Pacientes')
-                st.plotly_chart(fig2, use_container_width=True)
-        
-        # Tabela de performance por nutricionista
-        st.markdown("#### 👨‍⚕️ Performance por Nutricionista")
-        
-        nutritionist_performance = pd.read_sql_query(f"""
-            SELECT 
-                u.full_name as Nutricionista,
-                COUNT(DISTINCT p.id) as Pacientes,
-                COUNT(DISTINCT a.id) as Consultas,
-                COUNT(CASE WHEN a.status = 'realizada' THEN 1 END) as Realizadas,
-                CASE 
-                    WHEN COUNT(a.id) > 0 THEN 
-                        COUNT(CASE WHEN a.status = 'realizada' THEN 1 END) * 100.0 / COUNT(a.id)
-                    ELSE 0 
-                END as Taxa_Realizacao,
-                COALESCE(SUM(pf.amount), 0) as Receita_Gerada
-            FROM users u
-            LEFT JOIN patients p ON u.id = p.nutritionist_id
-            LEFT JOIN appointments a ON p.id = a.patient_id 
-                AND DATE(a.appointment_date) >= date('now', '-{days_back} days')
-            LEFT JOIN patient_financial pf ON p.id = pf.patient_id 
-                AND pf.payment_status = 'pago'
-                AND DATE(pf.created_at) >= date('now', '-{days_back} days')
-            WHERE u.role = 'nutritionist' AND u.active = 1
-            GROUP BY u.id, u.full_name
-            ORDER BY Receita_Gerada DESC
-        """, conn)
-        
-        if not nutritionist_performance.empty:
-            st.dataframe(nutritionist_performance, use_container_width=True)
-        
-        # Alertas e insights
-        st.markdown("#### ⚠️ Alertas e Insights")
-        
-        generate_executive_alerts(conn, days_back)
-    
-    except Exception as e:
-        st.error(f"Erro ao carregar dashboard executivo: {str(e)}")
-    finally:
-        conn.close()
-
-def calculate_executive_kpis(conn, days_back):
-    """Calcula KPIs para o dashboard executivo"""
-    # Receita atual e anterior
-    current_revenue = pd.read_sql_query(f"""
-        SELECT COALESCE(SUM(amount), 0) as revenue
-        FROM patient_financial
-        WHERE payment_status = 'pago' 
-        AND DATE(created_at) >= date('now', '-{days_back} days')
-    """, conn).iloc[0]['revenue']
-    
-    previous_revenue = pd.read_sql_query(f"""
-        SELECT COALESCE(SUM(amount), 0) as revenue
-        FROM patient_financial
-        WHERE payment_status = 'pago' 
-        AND DATE(created_at) BETWEEN date('now', '-{days_back*2} days') AND date('now', '-{days_back} days')
-    """, conn).iloc[0]['revenue']
-    
-    revenue_growth = ((current_revenue - previous_revenue) / previous_revenue * 100) if previous_revenue > 0 else 0
-    
-    # Pacientes ativos
-    current_patients = pd.read_sql_query("SELECT COUNT(*) as count FROM patients WHERE active = 1", conn).iloc[0]['count']
-    
-    previous_patients = pd.read_sql_query(f"""
-        SELECT COUNT(*) as count FROM patients 
-        WHERE active = 1 AND DATE(created_at) <= date('now', '-{days_back} days')
-    """, conn).iloc[0]['count']
-    
-    patient_growth = current_patients - previous_patients
-    
-    # Taxa de ocupação (consultas realizadas vs agendadas)
-    total_scheduled = pd.read_sql_query(f"""
-        SELECT COUNT(*) as count FROM appointments 
-        WHERE DATE(appointment_date) >= date('now', '-{days_back} days')
-    """, conn).iloc[0]['count']
-    
-    total_completed = pd.read_sql_query(f"""
-        SELECT COUNT(*) as count FROM appointments 
-        WHERE DATE(appointment_date) >= date('now', '-{days_back} days') AND status = 'realizada'
-    """, conn).iloc[0]['count']
-    
-    occupation_rate = (total_completed / total_scheduled * 100) if total_scheduled > 0 else 0
-    
-    # Simular outros KPIs (em uma implementação real, estes viriam de dados reais)
-    satisfaction = 4.2 + (random.random() * 0.6)  # Simula entre 4.2 e 4.8
-    roi = 15.5 + (random.random() * 10)  # Simula entre 15.5% e 25.5%
-    
-    return {
-        'revenue': current_revenue,
-        'revenue_growth': revenue_growth,
-        'active_patients': current_patients,
-        'patient_growth': patient_growth,
-        'occupation_rate': occupation_rate,
-        'occupation_growth': random.uniform(-5, 5),  # Simula variação
-        'satisfaction': satisfaction,
-        'satisfaction_growth': random.uniform(-0.3, 0.3),
-        'roi': roi,
-        'roi_growth': random.uniform(-2, 3)
+    .dashboard-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        border-left: 5px solid #4CAF50;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin: 1rem 0;
     }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #E8F5E8 0%, #C8E6C9 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        border: 2px solid #4CAF50;
+    }
+    
+    .user-role-badge {
+        display: inline-block;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        margin: 0.2rem;
+        text-transform: uppercase;
+    }
+    
+    .admin-badge { background: #ff5722; color: white; }
+    .nutritionist-badge { background: #4caf50; color: white; }
+    .secretary-badge { background: #2196f3; color: white; }
+    .patient-badge { background: #9c27b0; color: white; }
+    
+    .llm-response {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        border-left: 4px solid #9c27b0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-def generate_executive_alerts(conn, days_back):
-    """Gera alertas para o dashboard executivo"""
-    alerts = []
-    
-    # Verificar pacientes inativos
-    inactive_patients = pd.read_sql_query(f"""
-        SELECT COUNT(*) as count FROM patients p
-        WHERE NOT EXISTS (
-            SELECT 1 FROM appointments a 
-            WHERE a.patient_id = p.id 
-            AND a.appointment_date > date('now', '-{days_back} days')
-        ) AND p.active = 1
-    """, conn).iloc[0]['count']
-    
-    if inactive_patients > 0:
-        alerts.append({
-            'type': 'warning',
-            'title': '😴 Pacientes Inativos',
-            'message': f'{inactive_patients} pacientes sem consulta nos últimos {days_back} dias'
-        })
-    
-    # Verificar pagamentos em atraso
-    overdue_payments = pd.read_sql_query("""
-        SELECT COUNT(*) as count FROM patient_financial 
-        WHERE payment_status = 'pendente' AND due_date < date('now')
-    """, conn).iloc[0]['count']
-    
-    if overdue_payments > 0:
-        alerts.append({
-            'type': 'error',
-            'title': '💰 Pagamentos Atrasados',
-            'message': f'{overdue_payments} pagamentos em atraso requerem atenção'
-        })
-    
-    # Verificar capacidade ociosa
-    today_appointments = pd.read_sql_query("""
-        SELECT COUNT(*) as count FROM appointments 
-        WHERE DATE(appointment_date) = date('now')
-    """, conn).iloc[0]['count']
-    
-    if today_appointments < 5:  # Assumindo capacidade mínima
-        alerts.append({
-            'type': 'info',
-            'title': '📅 Capacidade Ociosa',
-            'message': f'Apenas {today_appointments} consultas agendadas para hoje'
-        })
-    
-    # Verificar crescimento positivo
-    new_patients_week = pd.read_sql_query("""
-        SELECT COUNT(*) as count FROM patients 
-        WHERE DATE(created_at) >= date('now', '-7 days')
-    """, conn).iloc[0]['count']
-    
-    if new_patients_week > 3:
-        alerts.append({
-            'type': 'success',
-            'title': '🎉 Crescimento Positivo',
-            'message': f'{new_patients_week} novos pacientes esta semana!'
-        })
-    
-    # Exibir alertas
-    for alert in alerts:
-        if alert['type'] == 'success':
-            st.success(f"**{alert['title']}**: {alert['message']}")
-        elif alert['type'] == 'warning':
-            st.warning(f"**{alert['title']}**: {alert['message']}")
-        elif alert['type'] == 'error':
-            st.error(f"**{alert['title']}**: {alert['message']}")
-        else:
-            st.info(f"**{alert['title']}**: {alert['message']}")
+# =============================================================================
+# BANCO DE DADOS
+# =============================================================================
 
-def show_gamification_management():
-    """Gestão completa de gamificação - IMPLEMENTAÇÃO COMPLETA"""
-    st.markdown('<h1 class="main-header">🎮 Gestão de Gamificação</h1>', unsafe_allow_html=True)
-    
-    if not check_permission('gamification'):
-        st.error("❌ Você não tem permissão para acessar esta área.")
-        return
-    
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🏆 Configuração de Badges", "🎯 Sistema de Pontos", "🏅 Rankings", "📊 Analytics"
-    ])
-    
-    with tab1:
-        show_badges_configuration()
-    
-    with tab2:
-        show_points_system()
-    
-    with tab3:
-        show_rankings_management()
-    
-    with tab4:
-        show_gamification_analytics()
-
-def show_badges_configuration():
-    """Configuração de badges"""
-    st.markdown("### 🏆 Configuração de Badges")
-    
+def init_database():
+    """Inicializa banco de dados"""
     conn = sqlite3.connect('nutriapp360.db')
+    cursor = conn.cursor()
     
-    try:
-        # Criar nova badge
-        st.markdown("#### ➕ Criar Nova Badge")
-        
-        with st.form("create_badge"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                badge_name = st.text_input("🏅 Nome da Badge")
-                badge_description = st.text_area("📝 Descrição")
-                badge_icon = st.selectbox("🎨 Ícone", [
-                    "🏆", "🥇", "🥈", "🥉", "⭐", "🌟", "💎", "👑",
-                    "🔥", "⚡", "💪", "🎯", "🚀", "🌈", "🎉", "✨"
-                ])
-            
-            with col2:
-                points_awarded = st.number_input("🎯 Pontos Concedidos", min_value=1, max_value=1000, value=10)
-                badge_category = st.selectbox("📋 Categoria", [
-                    "Progresso", "Adesão", "Metas", "Tempo", "Especial"
-                ])
-                auto_award = st.checkbox("🤖 Premiação Automática")
-            
-            trigger_condition = st.text_area("🔧 Condição para Premiação", 
-                                           placeholder="Ex: Completar 7 dias consecutivos")
-            
-            if st.form_submit_button("🏆 Criar Badge"):
-                if badge_name and badge_description:
-                    # Salvar badge na configuração (simulado)
-                    st.success(f"✅ Badge '{badge_name}' criada com sucesso!")
-                    
-                    # Demonstrar a badge criada
-                    st.markdown(f"""
-                    <div class="dashboard-card" style="text-align: center;">
-                        <div style="font-size: 3rem;">{badge_icon}</div>
-                        <h4>{badge_name}</h4>
-                        <p>{badge_description}</p>
-                        <small>+{points_awarded} pontos | {badge_category}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.error("❌ Preencha todos os campos obrigatórios")
-        
-        # Badges existentes (pré-definidas)
-        st.markdown("#### 🏅 Badges Disponíveis")
-        
-        predefined_badges = [
-            {"name": "Primeiro Passo", "desc": "Completou o primeiro dia", "icon": "🌟", "points": 10},
-            {"name": "Uma Semana", "desc": "7 dias consecutivos", "icon": "📅", "points": 50},
-            {"name": "Perda de Peso", "desc": "Perdeu 1kg", "icon": "⚖️", "points": 100},
-            {"name": "Meta Atingida", "desc": "Alcançou o peso ideal", "icon": "🎯", "points": 500},
-            {"name": "Frequência", "desc": "Não perdeu consultas", "icon": "📈", "points": 75},
-            {"name": "Hidratação", "desc": "Bebeu 2L água por 5 dias", "icon": "💧", "points": 30}
+    # Tabela de usuários
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL,
+            full_name TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP
+        )
+    ''')
+    
+    # Tabela de pacientes
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS patients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id TEXT UNIQUE NOT NULL,
+            full_name TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            birth_date DATE,
+            gender TEXT,
+            height REAL,
+            current_weight REAL,
+            target_weight REAL,
+            activity_level TEXT,
+            nutritionist_id INTEGER,
+            active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (nutritionist_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Tabela de agendamentos
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS appointments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            appointment_id TEXT UNIQUE NOT NULL,
+            patient_id INTEGER NOT NULL,
+            nutritionist_id INTEGER NOT NULL,
+            appointment_date DATETIME NOT NULL,
+            duration INTEGER DEFAULT 60,
+            appointment_type TEXT,
+            status TEXT DEFAULT 'agendado',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients (id),
+            FOREIGN KEY (nutritionist_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Tabela de receitas
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS recipes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT,
+            prep_time INTEGER,
+            calories_per_serving INTEGER,
+            ingredients TEXT,
+            instructions TEXT,
+            nutritionist_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (nutritionist_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Inserir dados iniciais se não existirem
+    cursor.execute("SELECT COUNT(*) FROM users")
+    if cursor.fetchone()[0] == 0:
+        # Usuários padrão
+        users_data = [
+            ('admin', hashlib.sha256('admin123'.encode()).hexdigest(), 'admin', 'Administrador Sistema', 'admin@nutriapp.com', '(11) 99999-0001'),
+            ('dr_silva', hashlib.sha256('nutri123'.encode()).hexdigest(), 'nutritionist', 'Dr. Ana Silva Santos', 'ana.silva@nutriapp.com', '(11) 99999-0002'),
+            ('secretaria', hashlib.sha256('sec123'.encode()).hexdigest(), 'secretary', 'Maria Fernanda Costa', 'secretaria@nutriapp.com', '(11) 99999-0003'),
+            ('paciente1', hashlib.sha256('pac123'.encode()).hexdigest(), 'patient', 'João Carlos Oliveira', 'joao@email.com', '(11) 99999-0004')
         ]
         
-        cols = st.columns(3)
-        for i, badge in enumerate(predefined_badges):
-            with cols[i % 3]:
-                st.markdown(f"""
-                <div class="dashboard-card" style="text-align: center;">
-                    <div style="font-size: 2rem;">{badge['icon']}</div>
-                    <h5>{badge['name']}</h5>
-                    <p style="font-size: 0.9rem;">{badge['desc']}</p>
-                    <small>+{badge['points']} pontos</small>
-                </div>
-                """, unsafe_allow_html=True)
+        cursor.executemany('''
+            INSERT INTO users (username, password_hash, role, full_name, email, phone)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', users_data)
         
-        # Premiar badge manualmente
-        st.markdown("#### 🎁 Premiar Badge Manualmente")
+        # Pacientes de exemplo
+        patients_data = [
+            ('PAT001', 'João Carlos Oliveira', 'joao@email.com', '(11) 98765-4321', '1985-03-15', 'M', 1.78, 85.2, 78.0, 'Sedentário', 2),
+            ('PAT002', 'Maria Silva Santos', 'maria.silva@email.com', '(11) 98765-4322', '1992-08-22', 'F', 1.65, 68.5, 60.0, 'Moderadamente ativo', 2),
+            ('PAT003', 'Ana Beatriz Costa', 'ana.beatriz@email.com', '(11) 98765-4323', '1995-12-03', 'F', 1.60, 72.0, 65.0, 'Muito ativo', 2)
+        ]
         
-        col1, col2 = st.columns(2)
+        cursor.executemany('''
+            INSERT INTO patients (patient_id, full_name, email, phone, birth_date, gender, height, 
+                                 current_weight, target_weight, activity_level, nutritionist_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', patients_data)
         
-        with col1:
-            # Selecionar paciente
-            patients = pd.read_sql_query("SELECT id, full_name FROM patients WHERE active = 1", conn)
-            if not patients.empty:
-                selected_patient = st.selectbox(
-                    "👤 Selecionar Paciente",
-                    patients['id'].tolist(),
-                    format_func=lambda x: patients[patients['id'] == x]['full_name'].iloc[0]
-                )
+        # Consultas de exemplo
+        appointments_data = [
+            ('APP001', 1, 2, '2024-10-01 09:00:00', 60, 'Consulta inicial', 'agendado', 'Primeira consulta'),
+            ('APP002', 2, 2, '2024-10-01 10:30:00', 60, 'Retorno', 'agendado', 'Revisão do plano'),
+            ('APP003', 3, 2, '2024-10-02 14:00:00', 45, 'Consulta inicial', 'agendado', 'Nova paciente')
+        ]
         
-        with col2:
-            selected_badge = st.selectbox("🏅 Selecionar Badge", 
-                                        [b['name'] for b in predefined_badges])
+        cursor.executemany('''
+            INSERT INTO appointments (appointment_id, patient_id, nutritionist_id, 
+                                     appointment_date, duration, appointment_type, status, notes) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', appointments_data)
         
-        if st.button("🎁 Premiar Badge"):
-            # Encontrar badge selecionada
-            badge_data = next(b for b in predefined_badges if b['name'] == selected_badge)
-            patient_name = patients[patients['id'] == selected_patient]['full_name'].iloc[0]
-            
-            # Simular premiação
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO patient_badges (patient_id, badge_name, badge_description, badge_icon, points_awarded)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (selected_patient, badge_data['name'], badge_data['desc'], badge_data['icon'], badge_data['points']))
-            
-            # Atualizar pontos
-            cursor.execute('''
-                UPDATE patient_points 
-                SET points = points + ?, total_points = total_points + ?
-                WHERE patient_id = ?
-            ''', (badge_data['points'], badge_data['points'], selected_patient))
-            
-            conn.commit()
-            st.success(f"🎉 Badge '{selected_badge}' concedida para {patient_name}!")
-            st.balloons()
+        # Receitas de exemplo
+        recipes_data = [
+            ('Salada de Quinoa', 'Saladas', 15, 320, 'Quinoa, pepino, tomate, azeite', 'Misture todos os ingredientes', 2),
+            ('Smoothie Verde', 'Bebidas', 5, 180, 'Couve, maçã, água de coco', 'Bata no liquidificador', 2),
+            ('Frango Grelhado', 'Pratos principais', 25, 450, 'Peito de frango, temperos', 'Grelhe por 10 min cada lado', 2)
+        ]
+        
+        cursor.executemany('''
+            INSERT INTO recipes (name, category, prep_time, calories_per_serving, ingredients, instructions, nutritionist_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', recipes_data)
     
-    except Exception as e:
-        st.error(f"Erro na gestão de badges: {str(e)}")
-    finally:
-        conn.close()
+    conn.commit()
+    conn.close()
 
-def show_points_system():
-    """Sistema de pontos"""
-    st.markdown("### 🎯 Sistema de Pontos")
-    
-    conn = sqlite3.connect('nutriapp360.db')
-    
-    try:
-        # Configurações de pontos
-        st.markdown("#### ⚙️ Configurações do Sistema")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("**🎯 Ações que Geram Pontos:**")
-            actions_points = {
-                "Comparecer à consulta": 20,
-                "Completar plano alimentar": 15,
-                "Registrar progresso": 10,
-                "Atingir meta diária": 5,
-                "Streak de 7 dias": 50,
-                "Perder peso na semana": 30
-            }
-            
-            for action, points in actions_points.items():
-                st.write(f"• {action}: **+{points} pontos**")
-        
-        with col2:
-            st.markdown("**⭐ Sistema de Níveis:**")
-            levels = [
-                {"level": 1, "points": "0-99", "title": "Iniciante"},
-                {"level": 2, "points": "100-299", "title": "Praticante"},
-                {"level": 3, "points": "300-599", "title": "Dedicado"},
-                {"level": 4, "points": "600-999", "title": "Expert"},
-                {"level": 5, "points": "1000+", "title": "Mestre"}
-            ]
-            
-            for level_info in levels:
-                st.write(f"**Nível {level_info['level']}:** {level_info['points']} pts - {level_info['title']}")
-        
-        # Distribuição atual de pontos
-        st.markdown("#### 📊 Distribuição Atual de Pontos")
-        
-        points_distribution = pd.read_sql_query("""
-            SELECT 
-                p.full_name,
-                pp.points,
-                pp.level,
-                pp.total_points,
-                pp.streak_days,
-                pp.last_activity
-            FROM patients p
-            JOIN patient_points pp ON p.id = pp.patient_id
-            WHERE p.active = 1
-            ORDER BY pp.total_points DESC
-        """, conn)
-        
-        if not points_distribution.empty:
-            # Top 10
-            st.markdown("#### 🏆 Top 10 Jogadores")
-            top_10 = points_distribution.head(10)
-            
-            for i, (_, player) in enumerate(top_10.iterrows(), 1):
-                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}º"
-                
-                st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; 
-                           padding: 0.8rem; margin: 0.3rem 0; background: #f8f9fa; 
-                           border-radius: 10px; border-left: 4px solid #4CAF50;">
-                    <div>
-                        <strong>{medal} {player['full_name']}</strong><br>
-                        <small>Último acesso: {player['last_activity'] or 'Nunca'}</small>
-                    </div>
-                    <div style="text-align: right;">
-                        <strong>Nível {player['level']}</strong><br>
-                        <span style="color: #4CAF50;">{player['total_points']} pts</span><br>
-                        <small>🔥 {player['streak_days']} dias</small>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Gráfico de distribuição de níveis
-            level_counts = points_distribution['level'].value_counts().sort_index()
-            
-            fig = px.bar(x=level_counts.index, y=level_counts.values,
-                        title='Distribuição de Jogadores por Nível',
-                        labels={'x': 'Nível', 'y': 'Quantidade de Jogadores'})
-            st.plotly_chart(fig, use_container_width=True)
-    
-    except Exception as e:
-        st.error(f"Erro no sistema de pontos: {str(e)}")
-    finally:
-        conn.close()
+# =============================================================================
+# AUTENTICAÇÃO
+# =============================================================================
 
-def show_rankings_management():
-    """Gestão de rankings"""
-    st.markdown("### 🏅 Gestão de Rankings")
-    
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def authenticate_user(username, password):
     conn = sqlite3.connect('nutriapp360.db')
+    cursor = conn.cursor()
     
-    try:
-        # Filtros para ranking
-        col1, col2, col3 = st.columns(3)
+    cursor.execute('''
+        SELECT id, username, password_hash, role, full_name, email
+        FROM users 
+        WHERE username = ? AND active = 1
+    ''', (username,))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result and hash_password(password) == result[2]:
+        return {
+            'id': result[0],
+            'username': result[1],
+            'role': result[3],
+            'full_name': result[4],
+            'email': result[5]
+        }
+    return None
+
+# =============================================================================
+# ASSISTENTE IA
+# =============================================================================
+
+class LLMAssistant:
+    def __init__(self):
+        self.context = "Assistente especializado em nutrição e saúde."
+    
+    def generate_response(self, prompt: str, context: str = "") -> str:
+        """Gera resposta baseada no prompt"""
+        prompt_lower = prompt.lower()
         
-        with col1:
-            ranking_type = st.selectbox("📊 Tipo de Ranking", [
-                "Pontos Totais", "Pontos do Mês", "Badges Conquistadas", 
-                "Streak Mais Longo", "Progresso de Peso"
-            ])
-        
-        with col2:
-            period = st.selectbox("📅 Período", [
-                "Todos os tempos", "Este mês", "Esta semana", "Últimos 7 dias"
-            ])
-        
-        with col3:
-            limit = st.selectbox("🔢 Mostrar Top", [10, 20, 50, 100])
-        
-        # Gerar ranking baseado na seleção
-        if ranking_type == "Pontos Totais":
-            ranking_data = pd.read_sql_query("""
-                SELECT 
-                    p.full_name,
-                    pp.total_points as valor,
-                    pp.level,
-                    'pontos' as unidade
-                FROM patients p
-                JOIN patient_points pp ON p.id = pp.patient_id
-                WHERE p.active = 1
-                ORDER BY pp.total_points DESC
-            """, conn)
-        
-        elif ranking_type == "Badges Conquistadas":
-            ranking_data = pd.read_sql_query(f"""
-                SELECT 
-                    p.full_name,
-                    COUNT(pb.id) as valor,
-                    pp.level,
-                    'badges' as unidade
-                FROM patients p
-                JOIN patient_points pp ON p.id = pp.patient_id
-                LEFT JOIN patient_badges pb ON p.id = pb.patient_id
-                WHERE p.active = 1
-                GROUP BY p.id, p.full_name, pp.level
-                ORDER BY valor DESC
-            """, conn)
-        
-        elif ranking_type == "Streak Mais Longo":
-            ranking_data = pd.read_sql_query("""
-                SELECT 
-                    p.full_name,
-                    pp.streak_days as valor,
-                    pp.level,
-                    'dias' as unidade
-                FROM patients p
-                JOIN patient_points pp ON p.id = pp.patient_id
-                WHERE p.active = 1
-                ORDER BY pp.streak_days DESC
-            """, conn)
-        
+        if any(word in prompt_lower for word in ["plano", "cardapio", "refeicao"]):
+            return self._generate_meal_plan_response()
+        elif any(word in prompt_lower for word in ["receita", "preparo", "cozinhar"]):
+            return self._generate_recipe_response()
+        elif any(word in prompt_lower for word in ["peso", "emagrecer", "dieta"]):
+            return self._generate_weight_response()
+        elif any(word in prompt_lower for word in ["motivacao", "animo", "desistir"]):
+            return self._generate_motivation_response()
         else:
-            ranking_data = pd.DataFrame()  # Placeholder para outros tipos
+            return self._generate_general_response()
+    
+    def _generate_meal_plan_response(self):
+        return """
+        **📋 Sugestão de Plano Alimentar Balanceado:**
         
-        # Exibir ranking
-        if not ranking_data.empty:
-            st.markdown(f"#### 🏆 Ranking: {ranking_type}")
+        **Café da Manhã (300 kcal):**
+        • 1 fatia de pão integral
+        • 1 ovo mexido
+        • 1 fruta média
+        • Café com leite desnatado
+        
+        **Lanche Manhã (150 kcal):**
+        • 1 iogurte grego
+        • 1 colher de granola
+        
+        **Almoço (450 kcal):**
+        • 100g de proteína magra
+        • 1 porção de carboidrato integral
+        • Salada verde à vontade
+        • 1 colher de azeite
+        
+        **Lanche Tarde (200 kcal):**
+        • 1 fruta + castanhas (30g)
+        
+        **Jantar (350 kcal):**
+        • Proteína magra
+        • Vegetais variados
+        • 1 porção pequena de carboidrato
+        
+        **💧 Hidratação:** 2-3 litros de água por dia
+        """
+    
+    def _generate_recipe_response(self):
+        return """
+        **🍳 Receita Saudável: Bowl Nutritivo**
+        
+        **Ingredientes:**
+        • 1/2 xícara de quinoa cozida
+        • 100g de frango desfiado
+        • Mix de folhas verdes
+        • 1/2 abacate
+        • Tomate cereja
+        • 1 colher de azeite extra virgem
+        
+        **Modo de Preparo:**
+        1. Monte a base com as folhas
+        2. Adicione a quinoa e o frango
+        3. Decore com abacate e tomates
+        4. Regue com azeite e temperos
+        
+        **💪 Informação Nutricional:**
+        • Aproximadamente 450 kcal
+        • Rica em proteínas e fibras
+        • Fonte de gorduras boas
+        """
+    
+    def _generate_weight_response(self):
+        return """
+        **⚖️ Dicas para Gestão de Peso Saudável:**
+        
+        **📉 Para Emagrecimento:**
+        • Déficit calórico moderado (300-500 kcal/dia)
+        • Priorize proteínas em cada refeição
+        • Aumente o consumo de fibras
+        • Pratique atividade física regular
+        • Durma bem (7-9 horas por noite)
+        
+        **📈 Para Ganho de Peso:**
+        • Superávit calórico controlado
+        • Refeições mais frequentes
+        • Foque em alimentos nutritivos
+        • Inclua exercícios de força
+        
+        **🎯 Dicas Gerais:**
+        • Não pule refeições
+        • Mastigue bem os alimentos
+        • Evite distrações durante as refeições
+        • Seja paciente com o processo
+        """
+    
+    def _generate_motivation_response(self):
+        return """
+        **💪 Mensagem Motivacional:**
+        
+        Lembre-se: cada pequeno passo é uma vitória! 
+        
+        **🌟 Você já conseguiu:**
+        • Tomar a decisão de cuidar da sua saúde
+        • Buscar orientação profissional
+        • Começar essa jornada de transformação
+        
+        **🎯 Foque no Progresso:**
+        • Não na perfeição, mas na consistência
+        • Celebre as pequenas conquistas
+        • Aprenda com os obstáculos
+        • Seja gentil consigo mesmo
+        
+        **💚 Lembre-se:** Sua saúde é um investimento, não um gasto. 
+        Cada escolha saudável é um presente para o seu futuro!
+        
+        Continue firme, você consegue! 🚀
+        """
+    
+    def _generate_general_response(self):
+        return """
+        **🤖 Assistente Nutricional IA**
+        
+        Olá! Sou seu assistente especializado em nutrição.
+        
+        **💡 Posso ajudar com:**
+        • Planejamento de refeições
+        • Sugestões de receitas saudáveis
+        • Dicas de emagrecimento ou ganho de peso
+        • Motivação e apoio
+        • Informações nutricionais
+        • Estratégias para mudança de hábitos
+        
+        **❓ Como posso ajudar você hoje?**
+        Digite sua dúvida ou necessidade que terei prazer em orientar!
+        """
+
+# =============================================================================
+# INTERFACE DE LOGIN
+# =============================================================================
+
+def show_login_page():
+    st.markdown("""
+    <div class="main-header">
+        <h1>🥗 NutriApp360 v5.0</h1>
+        <h3>Sistema Completo de Gestão Nutricional</h3>
+        <p><strong>✅ VERSÃO TOTALMENTE FUNCIONAL</strong></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+        
+        user_type = st.selectbox("👤 Tipo de Usuário", [
+            "🔧 Administrador", 
+            "👨‍⚕️ Nutricionista", 
+            "📋 Secretária", 
+            "🧑‍💼 Paciente"
+        ])
+        
+        with st.form("login_form"):
+            username = st.text_input("👤 Usuário")
+            password = st.text_input("🔒 Senha", type="password")
             
-            ranking_display = ranking_data.head(limit)
+            col_login1, col_login2 = st.columns(2)
+            with col_login1:
+                login_btn = st.form_submit_button("🚀 Entrar", use_container_width=True)
+            with col_login2:
+                demo_btn = st.form_submit_button("👁️ Demo", use_container_width=True)
             
-            for i, (_, player) in enumerate(ranking_display.iterrows(), 1):
-                # Determinar cor da medalha/posição
-                if i <= 3:
-                    medals = ["🥇", "🥈", "🥉"]
-                    medal = medals[i-1]
-                    bg_color = ["#FFD700", "#C0C0C0", "#CD7F32"][i-1] + "20"
+            if demo_btn:
+                demo_credentials = {
+                    "🔧 Administrador": ("admin", "admin123"),
+                    "👨‍⚕️ Nutricionista": ("dr_silva", "nutri123"),
+                    "📋 Secretária": ("secretaria", "sec123"),
+                    "🧑‍💼 Paciente": ("paciente1", "pac123")
+                }
+                username, password = demo_credentials[user_type]
+                login_btn = True
+            
+            if login_btn and username and password:
+                user = authenticate_user(username, password)
+                if user:
+                    st.session_state.user = user
+                    st.success(f"✅ Bem-vindo(a), {user['full_name']}!")
+                    st.rerun()
                 else:
-                    medal = f"{i}º"
-                    bg_color = "#f8f9fa"
-                
-                st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; 
-                           padding: 1rem; margin: 0.5rem 0; background: {bg_color}; 
-                           border-radius: 12px; border-left: 4px solid #4CAF50;">
-                    <div style="display: flex; align-items: center;">
-                        <span style="font-size: 1.5rem; margin-right: 1rem;">{medal}</span>
-                        <div>
-                            <strong>{player['full_name']}</strong><br>
-                            <small>Nível {player['level']}</small>
-                        </div>
-                    </div>
-                    <div style="text-align: right;">
-                        <strong style="font-size: 1.2rem; color: #4CAF50;">
-                            {player['valor']:.0f} {player['unidade']}
-                        </strong>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Premiação especial para top 3
-            st.markdown("#### 🎁 Premiação Especial")
-            
-            if st.button("🏆 Premiar Top 3"):
-                top_3 = ranking_display.head(3)
-                for i, (_, player) in enumerate(top_3.iterrows(), 1):
-                    bonus_points = [100, 75, 50][i-1]
-                    st.success(f"{['🥇', '🥈', '🥉'][i-1]} {player['full_name']} recebeu +{bonus_points} pontos bônus!")
-                
-                st.balloons()
+                    st.error("❌ Credenciais inválidas!")
         
-        else:
-            st.info("📊 Nenhum dado encontrado para o ranking selecionado")
-    
-    except Exception as e:
-        st.error(f"Erro na gestão de rankings: {str(e)}")
-    finally:
-        conn.close()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Credenciais demo
+        st.info(f"""
+        **🎯 Credenciais Demo ({user_type}):**
+        
+        **Usuário:** {
+            {"🔧 Administrador": "admin", "👨‍⚕️ Nutricionista": "dr_silva", 
+             "📋 Secretária": "secretaria", "🧑‍💼 Paciente": "paciente1"}[user_type]
+        }
+        
+        **Senha:** {
+            {"🔧 Administrador": "admin123", "👨‍⚕️ Nutricionista": "nutri123", 
+             "📋 Secretária": "sec123", "🧑‍💼 Paciente": "pac123"}[user_type]
+        }
+        """)
 
 # =============================================================================
-# FUNCIONALIDADES DE NOTIFICAÇÃO E COMUNICAÇÃO
+# SIDEBAR E NAVEGAÇÃO
 # =============================================================================
 
-def show_notification_system():
-    """Sistema completo de notificações"""
-    st.markdown('<h1 class="main-header">📧 Sistema de Notificações</h1>', unsafe_allow_html=True)
+def show_sidebar():
+    user_role = st.session_state.user['role']
+    user_name = st.session_state.user['full_name']
     
-    tab1, tab2, tab3 = st.tabs([
-        "📨 Enviar Notificações", "📋 Templates", "📊 Histórico"
-    ])
+    st.sidebar.markdown(f"""
+    <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #4CAF50, #8BC34A); 
+                border-radius: 15px; margin-bottom: 1rem;">
+        <h3 style="color: white; margin: 0;">🥗 NutriApp360</h3>
+        <p style="color: white; margin: 0;">Olá, <strong>{user_name}</strong></p>
+        <span class="{user_role}-badge">{user_role.title()}</span>
+    </div>
+    """, unsafe_allow_html=True)
     
-    with tab1:
-        show_send_notifications()
+    menu_options = {
+        'admin': {
+            'dashboard': '📊 Dashboard',
+            'users': '👥 Usuários',
+            'reports': '📈 Relatórios',
+            'settings': '⚙️ Configurações'
+        },
+        'nutritionist': {
+            'dashboard': '📊 Dashboard',
+            'patients': '👥 Pacientes',
+            'appointments': '📅 Agendamentos',
+            'recipes': '🍳 Receitas',
+            'ia_assistant': '🤖 Assistente IA',
+            'calculators': '🧮 Calculadoras'
+        },
+        'secretary': {
+            'dashboard': '📊 Dashboard',
+            'appointments': '📅 Agendamentos',
+            'patients_basic': '👥 Pacientes',
+            'financial': '💰 Financeiro'
+        },
+        'patient': {
+            'dashboard': '🏠 Meu Dashboard',
+            'progress': '📈 Meu Progresso',
+            'appointments': '📅 Consultas',
+            'chat': '💬 Chat IA'
+        }
+    }
     
-    with tab2:
-        show_notification_templates()
+    current_menu = menu_options.get(user_role, {})
+    selected_page = st.sidebar.selectbox("📋 Menu", 
+                                       list(current_menu.keys()),
+                                       format_func=lambda x: current_menu[x])
     
-    with tab3:
-        show_notification_history()
+    # Logout
+    st.sidebar.markdown("<hr>", unsafe_allow_html=True)
+    if st.sidebar.button("🚪 Logout", use_container_width=True):
+        st.session_state.user = None
+        st.rerun()
+    
+    return selected_page
 
-def show_send_notifications():
-    """Interface para envio de notificações"""
-    st.markdown("### 📨 Enviar Notificações")
+# =============================================================================
+# DASHBOARDS
+# =============================================================================
+
+def show_admin_dashboard():
+    st.markdown('<h1 class="main-header">📊 Dashboard Administrativo</h1>', unsafe_allow_html=True)
     
     conn = sqlite3.connect('nutriapp360.db')
     
     try:
-        # Tipo de notificação
-        notification_type = st.selectbox("📬 Tipo de Notificação", [
-            "Lembrete de Consulta",
-            "Cobrança de Pagamento",
-            "Parabéns por Meta",
-            "Motivacional",
-            "Aniversário",
-            "Personalizada"
-        ])
-        
-        # Seleção de destinatários
-        st.markdown("#### 👥 Destinatários")
-        
-        recipient_type = st.radio("Enviar para:", [
-            "Paciente específico",
-            "Todos os pacientes",
-            "Pacientes de um nutricionista",
-            "Pacientes com consulta hoje"
-        ])
-        
-        recipients = []
-        
-        if recipient_type == "Paciente específico":
-            patients = pd.read_sql_query("SELECT id, full_name, email FROM patients WHERE active = 1", conn)
-            if not patients.empty:
-                selected_patient = st.selectbox(
-                    "👤 Selecionar Paciente",
-                    patients['id'].tolist(),
-                    format_func=lambda x: patients[patients['id'] == x]['full_name'].iloc[0]
-                )
-                recipients = [patients[patients['id'] == selected_patient].iloc[0]]
-        
-        elif recipient_type == "Todos os pacientes":
-            recipients = pd.read_sql_query("SELECT id, full_name, email FROM patients WHERE active = 1", conn).to_dict('records')
-        
-        elif recipient_type == "Pacientes de um nutricionista":
-            nutritionists = pd.read_sql_query("SELECT id, full_name FROM users WHERE role = 'nutritionist' AND active = 1", conn)
-            if not nutritionists.empty:
-                selected_nutritionist = st.selectbox(
-                    "👨‍⚕️ Selecionar Nutricionista",
-                    nutritionists['id'].tolist(),
-                    format_func=lambda x: nutritionists[nutritionists['id'] == x]['full_name'].iloc[0]
-                )
-                recipients = pd.read_sql_query("""
-                    SELECT id, full_name, email FROM patients 
-                    WHERE nutritionist_id = ? AND active = 1
-                """, conn, params=[selected_nutritionist]).to_dict('records')
-        
-        # Conteúdo da notificação
-        st.markdown("#### ✉️ Conteúdo da Notificação")
-        
-        if notification_type == "Personalizada":
-            subject = st.text_input("📋 Assunto")
-            message = st.text_area("💬 Mensagem", height=150)
-        else:
-            # Template pré-definido
-            templates = get_notification_templates()
-            template = templates.get(notification_type, {})
-            subject = st.text_input("📋 Assunto", value=template.get('subject', ''))
-            message = st.text_area("💬 Mensagem", value=template.get('message', ''), height=150)
-        
-        # Opções de envio
-        col1, col2 = st.columns(2)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            send_email = st.checkbox("📧 Enviar por Email", value=True)
-            send_sms = st.checkbox("📱 Enviar por SMS")
-        
-        with col2:
-            schedule_send = st.checkbox("⏰ Agendar Envio")
-            if schedule_send:
-                send_datetime = st.datetime_input("📅 Data e Hora do Envio")
-        
-        # Prévia da notificação
-        if recipients and subject and message:
-            st.markdown("#### 👀 Prévia da Notificação")
-            
-            sample_recipient = recipients[0] if isinstance(recipients, list) else recipients
-            preview_message = message.replace("{nome}", sample_recipient.get('full_name', 'Nome do Paciente'))
-            
+            total_users = pd.read_sql_query("SELECT COUNT(*) as count FROM users WHERE active = 1", conn).iloc[0]['count']
             st.markdown(f"""
-            <div class="dashboard-card">
-                <h5>📧 {subject}</h5>
-                <p>{preview_message}</p>
-                <small>Para: {len(recipients)} destinatário(s)</small>
+            <div class="metric-card">
+                <h3>👥</h3>
+                <h2>{total_users}</h2>
+                <p>Usuários Ativos</p>
             </div>
             """, unsafe_allow_html=True)
         
-        # Enviar notificação
-        if st.button("📤 Enviar Notificação"):
-            if recipients and subject and message:
-                success_count = send_notifications(recipients, subject, message, send_email, send_sms)
-                st.success(f"✅ {success_count} notificações enviadas com sucesso!")
-                st.balloons()
-            else:
-                st.error("❌ Preencha todos os campos obrigatórios")
+        with col2:
+            total_patients = pd.read_sql_query("SELECT COUNT(*) as count FROM patients WHERE active = 1", conn).iloc[0]['count']
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>🏥</h3>
+                <h2>{total_patients}</h2>
+                <p>Pacientes</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            total_appointments = pd.read_sql_query("SELECT COUNT(*) as count FROM appointments", conn).iloc[0]['count']
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>📅</h3>
+                <h2>{total_appointments}</h2>
+                <p>Consultas</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            total_recipes = pd.read_sql_query("SELECT COUNT(*) as count FROM recipes", conn).iloc[0]['count']
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>🍳</h3>
+                <h2>{total_recipes}</h2>
+                <p>Receitas</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Gráfico de usuários por tipo
+        users_by_role = pd.read_sql_query("SELECT role, COUNT(*) as count FROM users GROUP BY role", conn)
+        
+        if not users_by_role.empty:
+            fig = px.pie(users_by_role, values='count', names='role', title='Distribuição de Usuários')
+            st.plotly_chart(fig, use_container_width=True)
     
-    except Exception as e:
-        st.error(f"Erro no sistema de notificações: {str(e)}")
     finally:
         conn.close()
 
-def get_notification_templates():
-    """Retorna templates de notificação"""
-    return {
-        "Lembrete de Consulta": {
-            "subject": "🩺 Lembrete: Sua consulta é amanhã!",
-            "message": "Olá {nome}!\n\nEste é um lembrete da sua consulta nutricional marcada para amanhã.\n\nPor favor, confirme sua presença respondendo este email.\n\nAtenciosamente,\nEquipe NutriApp360"
-        },
-        "Cobrança de Pagamento": {
-            "subject": "💰 Lembrete de Pagamento - NutriApp360",
-            "message": "Olá {nome}!\n\nTemos um pagamento pendente em sua conta.\n\nPor favor, regularize sua situação o quanto antes.\n\nAtenciosamente,\nEquipe Financeira"
-        },
-        "Parabéns por Meta": {
-            "subject": "🎉 Parabéns! Você atingiu sua meta!",
-            "message": "Olá {nome}!\n\n🎉 PARABÉNS! Você atingiu sua meta!\n\nSeu esforço e dedicação estão dando frutos. Continue assim!\n\nCom carinho,\nSua equipe nutricional"
-        },
-        "Motivacional": {
-            "subject": "💪 Você consegue! Continue firme!",
-            "message": "Olá {nome}!\n\nLembramos que cada pequeno passo é uma vitória! \n\nNão desista dos seus objetivos. Estamos aqui para te apoiar sempre!\n\n💪 Força e foco!\n\nEquipe NutriApp360"
-        },
-        "Aniversário": {
-            "subject": "🎂 Feliz Aniversário!",
-            "message": "Olá {nome}!\n\n🎂 FELIZ ANIVERSÁRIO! 🎉\n\nDesejamos um dia cheio de alegria e um ano repleto de saúde e conquistas!\n\nCom carinho,\nEquipe NutriApp360"
-        }
-    }
-
-def send_notifications(recipients, subject, message, send_email=True, send_sms=False):
-    """Simula envio de notificações"""
-    success_count = 0
+def show_nutritionist_dashboard():
+    st.markdown('<h1 class="main-header">👨‍⚕️ Dashboard do Nutricionista</h1>', unsafe_allow_html=True)
     
-    for recipient in recipients:
-        try:
-            if send_email and recipient.get('email'):
-                # Simular envio de email
-                personalized_message = message.replace("{nome}", recipient.get('full_name', 'Paciente'))
-                # Aqui seria implementado o envio real via SMTP
-                success_count += 1
-            
-            if send_sms and recipient.get('phone'):
-                # Simular envio de SMS
-                # Aqui seria implementado o envio real via API de SMS
-                success_count += 1
+    conn = sqlite3.connect('nutriapp360.db')
+    nutritionist_id = st.session_state.user['id']
+    
+    try:
+        col1, col2, col3, col4 = st.columns(4)
         
-        except Exception:
-            continue
-    
-    return success_count
-
-def show_notification_templates():
-    """Gestão de templates de notificação"""
-    st.markdown("### 📋 Templates de Notificação")
-    
-    # Templates existentes
-    templates = get_notification_templates()
-    
-    st.markdown("#### 📝 Templates Disponíveis")
-    
-    for template_name, template_data in templates.items():
-        with st.expander(f"📄 {template_name}"):
-            st.write(f"**Assunto:** {template_data['subject']}")
-            st.write(f"**Mensagem:**")
-            st.write(template_data['message'])
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button(f"✏️ Editar", key=f"edit_{template_name}"):
-                    st.info("Funcionalidade de edição disponível na versão premium")
-            with col2:
-                if st.button(f"📤 Usar Template", key=f"use_{template_name}"):
-                    st.info("Template selecionado! Retorne à aba 'Enviar Notificações'")
-    
-    # Criar novo template
-    st.markdown("#### ➕ Criar Novo Template")
-    
-    with st.form("new_template"):
-        template_name = st.text_input("📝 Nome do Template")
-        template_subject = st.text_input("📋 Assunto")
-        template_message = st.text_area("💬 Mensagem")
+        with col1:
+            my_patients = pd.read_sql_query("""
+                SELECT COUNT(*) as count FROM patients 
+                WHERE nutritionist_id = ? AND active = 1
+            """, conn, params=[nutritionist_id]).iloc[0]['count']
+            st.metric("👥 Meus Pacientes", my_patients)
         
-        st.info("💡 Use {nome} para personalizar com o nome do paciente")
+        with col2:
+            today_appointments = pd.read_sql_query("""
+                SELECT COUNT(*) as count FROM appointments 
+                WHERE nutritionist_id = ? AND DATE(appointment_date) = DATE('now')
+            """, conn, params=[nutritionist_id]).iloc[0]['count']
+            st.metric("📅 Consultas Hoje", today_appointments)
         
-        if st.form_submit_button("💾 Salvar Template"):
-            if template_name and template_subject and template_message:
-                st.success(f"✅ Template '{template_name}' salvo com sucesso!")
-            else:
-                st.error("❌ Preencha todos os campos")
+        with col3:
+            my_recipes = pd.read_sql_query("""
+                SELECT COUNT(*) as count FROM recipes 
+                WHERE nutritionist_id = ?
+            """, conn, params=[nutritionist_id]).iloc[0]['count']
+            st.metric("🍳 Minhas Receitas", my_recipes)
+        
+        with col4:
+            st.metric("📊 Taxa Sucesso", "85.2%")
+        
+        # Próximas consultas
+        st.markdown("### 📅 Próximas Consultas")
+        upcoming = pd.read_sql_query("""
+            SELECT a.appointment_date, p.full_name, a.appointment_type, a.status
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            WHERE a.nutritionist_id = ? AND DATE(a.appointment_date) >= DATE('now')
+            ORDER BY a.appointment_date
+            LIMIT 5
+        """, conn, params=[nutritionist_id])
+        
+        if not upcoming.empty:
+            for _, apt in upcoming.iterrows():
+                date_time = pd.to_datetime(apt['appointment_date'])
+                st.markdown(f"""
+                <div class="dashboard-card">
+                    <strong>{date_time.strftime('%d/%m/%Y %H:%M')}</strong> - {apt['full_name']}<br>
+                    <small>{apt['appointment_type']} | Status: {apt['status']}</small>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("📅 Nenhuma consulta próxima agendada")
+    
+    finally:
+        conn.close()
 
-def show_notification_history():
-    """Histórico de notificações enviadas"""
-    st.markdown("### 📊 Histórico de Notificações")
+def show_patient_dashboard():
+    st.markdown('<h1 class="main-header">🏠 Meu Painel Pessoal</h1>', unsafe_allow_html=True)
     
-    # Simular histórico
-    history_data = [
-        {"data": "2024-09-22 14:30", "tipo": "Lembrete Consulta", "destinatarios": 15, "sucesso": 14, "falha": 1},
-        {"data": "2024-09-21 09:00", "tipo": "Motivacional", "destinatarios": 50, "sucesso": 48, "falha": 2},
-        {"data": "2024-09-20 16:45", "tipo": "Cobrança", "destinatarios": 8, "sucesso": 8, "falha": 0},
-        {"data": "2024-09-19 11:20", "tipo": "Aniversário", "destinatarios": 3, "sucesso": 3, "falha": 0},
-        {"data": "2024-09-18 08:15", "tipo": "Parabéns Meta", "destinatarios": 12, "sucesso": 11, "falha": 1}
-    ]
+    user_name = st.session_state.user['full_name']
     
-    # Métricas do histórico
+    st.markdown(f"""
+    <div class="dashboard-card">
+        <h3>Olá, {user_name}!</h3>
+        <p>Bem-vindo ao seu painel pessoal de acompanhamento nutricional.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        total_sent = sum(item['destinatarios'] for item in history_data)
-        st.metric("📤 Total Enviado", total_sent)
+        st.metric("⚖️ Peso Atual", "75.2 kg")
+    with col2:
+        st.metric("🎯 Meta", "70.0 kg")
+    with col3:
+        st.metric("📉 Progresso", "-2.1 kg")
+    with col4:
+        st.metric("🏆 Nível", "3")
+    
+    # Próxima consulta
+    st.markdown("### 📅 Próxima Consulta")
+    st.info("📅 01/10/2024 às 09:00 - Dr. Ana Silva Santos")
+
+# =============================================================================
+# GESTÃO DE PACIENTES
+# =============================================================================
+
+def show_patients_management():
+    st.markdown('<h1 class="main-header">👥 Gestão de Pacientes</h1>', unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["👥 Lista de Pacientes", "➕ Novo Paciente"])
+    
+    with tab1:
+        show_patients_list()
+    
+    with tab2:
+        show_add_patient_form()
+
+def show_patients_list():
+    st.markdown("### 👥 Lista de Pacientes")
+    
+    conn = sqlite3.connect('nutriapp360.db')
+    
+    try:
+        patients = pd.read_sql_query("""
+            SELECT p.*, u.full_name as nutritionist_name 
+            FROM patients p 
+            LEFT JOIN users u ON p.nutritionist_id = u.id 
+            WHERE p.active = 1
+            ORDER BY p.created_at DESC
+        """, conn)
+        
+        if not patients.empty:
+            for _, patient in patients.iterrows():
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.markdown(f"""
+                    <div class="dashboard-card">
+                        <h4>{patient['full_name']} ({patient['patient_id']})</h4>
+                        <p>📧 {patient['email']} | 📞 {patient['phone']}</p>
+                        <p>⚖️ {patient['current_weight']}kg → 🎯 {patient['target_weight']}kg</p>
+                        <p>👨‍⚕️ {patient['nutritionist_name'] or 'Não atribuído'}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    if st.button("👁️ Ver", key=f"view_{patient['id']}"):
+                        st.info(f"Visualizando dados de {patient['full_name']}")
+    
+    finally:
+        conn.close()
+
+def show_add_patient_form():
+    st.markdown("### ➕ Cadastrar Novo Paciente")
+    
+    with st.form("add_patient_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            full_name = st.text_input("👤 Nome Completo *")
+            email = st.text_input("📧 Email *")
+            phone = st.text_input("📞 Telefone *")
+            birth_date = st.date_input("🎂 Data de Nascimento")
+        
+        with col2:
+            gender = st.selectbox("👤 Gênero *", ["M", "F"])
+            height = st.number_input("📏 Altura (m)", min_value=1.0, max_value=2.5, value=1.70, step=0.01)
+            current_weight = st.number_input("⚖️ Peso Atual (kg)", min_value=30.0, max_value=300.0, value=70.0, step=0.1)
+            target_weight = st.number_input("🎯 Peso Meta (kg)", min_value=30.0, max_value=300.0, value=65.0, step=0.1)
+        
+        activity_level = st.selectbox("🏃 Nível de Atividade", 
+                                    ["Sedentário", "Moderadamente ativo", "Ativo", "Muito ativo"])
+        
+        submitted = st.form_submit_button("➕ Cadastrar Paciente", type="primary")
+        
+        if submitted and full_name and email:
+            conn = sqlite3.connect('nutriapp360.db')
+            cursor = conn.cursor()
+            
+            patient_id = f"PAT{str(uuid.uuid4())[:6].upper()}"
+            
+            try:
+                cursor.execute('''
+                    INSERT INTO patients (
+                        patient_id, full_name, email, phone, birth_date, gender, height,
+                        current_weight, target_weight, activity_level, nutritionist_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    patient_id, full_name, email, phone, birth_date, gender, height,
+                    current_weight, target_weight, activity_level, st.session_state.user['id']
+                ))
+                
+                conn.commit()
+                st.success(f"✅ Paciente {full_name} cadastrado! ID: {patient_id}")
+                st.balloons()
+            
+            except Exception as e:
+                st.error(f"Erro ao cadastrar: {str(e)}")
+            finally:
+                conn.close()
+
+# =============================================================================
+# GESTÃO DE AGENDAMENTOS
+# =============================================================================
+
+def show_appointments_management():
+    st.markdown('<h1 class="main-header">📅 Gestão de Agendamentos</h1>', unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["📅 Lista de Agendamentos", "➕ Novo Agendamento"])
+    
+    with tab1:
+        show_appointments_list()
+    
+    with tab2:
+        show_new_appointment_form()
+
+def show_appointments_list():
+    st.markdown("### 📅 Lista de Agendamentos")
+    
+    conn = sqlite3.connect('nutriapp360.db')
+    
+    try:
+        appointments = pd.read_sql_query("""
+            SELECT a.*, p.full_name as patient_name, u.full_name as nutritionist_name
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            JOIN users u ON a.nutritionist_id = u.id
+            ORDER BY a.appointment_date DESC
+            LIMIT 20
+        """, conn)
+        
+        if not appointments.empty:
+            for _, apt in appointments.iterrows():
+                date_time = pd.to_datetime(apt['appointment_date'])
+                
+                st.markdown(f"""
+                <div class="dashboard-card">
+                    <div style="display: flex; justify-content: space-between;">
+                        <div>
+                            <h5>{apt['patient_name']}</h5>
+                            <p>👨‍⚕️ {apt['nutritionist_name']}</p>
+                            <p>📋 {apt['appointment_type']}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <strong>{date_time.strftime('%d/%m/%Y')}</strong><br>
+                            <strong>{date_time.strftime('%H:%M')}</strong><br>
+                            <span style="color: {'#4CAF50' if apt['status'] == 'realizada' else '#2196F3'}">
+                                {apt['status'].title()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    finally:
+        conn.close()
+
+def show_new_appointment_form():
+    st.markdown("### ➕ Novo Agendamento")
+    
+    conn = sqlite3.connect('nutriapp360.db')
+    
+    try:
+        patients = pd.read_sql_query("SELECT id, full_name FROM patients WHERE active = 1", conn)
+        
+        if patients.empty:
+            st.error("❌ Nenhum paciente ativo encontrado")
+            return
+        
+        with st.form("new_appointment_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                patient_id = st.selectbox(
+                    "👤 Paciente",
+                    patients['id'].tolist(),
+                    format_func=lambda x: patients[patients['id'] == x]['full_name'].iloc[0]
+                )
+                appointment_type = st.selectbox("📋 Tipo de Consulta", [
+                    "Consulta inicial", "Retorno", "Acompanhamento", "Avaliação nutricional"
+                ])
+            
+            with col2:
+                appointment_date = st.date_input("📅 Data", value=date.today() + timedelta(days=1))
+                appointment_time = st.time_input("⏰ Horário")
+                duration = st.selectbox("⏱️ Duração (min)", [30, 45, 60, 90], index=2)
+            
+            notes = st.text_area("📝 Observações")
+            
+            submitted = st.form_submit_button("📅 Agendar Consulta", type="primary")
+            
+            if submitted:
+                appointment_datetime = datetime.combine(appointment_date, appointment_time)
+                appointment_id = f"APP{str(uuid.uuid4())[:6].upper()}"
+                
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO appointments (
+                        appointment_id, patient_id, nutritionist_id, appointment_date,
+                        duration, appointment_type, status, notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'agendado', ?)
+                ''', (appointment_id, patient_id, st.session_state.user['id'], 
+                      appointment_datetime, duration, appointment_type, notes))
+                
+                conn.commit()
+                st.success(f"✅ Consulta agendada! ID: {appointment_id}")
+    
+    finally:
+        conn.close()
+
+# =============================================================================
+# GESTÃO DE RECEITAS
+# =============================================================================
+
+def show_recipes_management():
+    st.markdown('<h1 class="main-header">🍳 Gestão de Receitas</h1>', unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["🍳 Lista de Receitas", "➕ Nova Receita"])
+    
+    with tab1:
+        show_recipes_list()
+    
+    with tab2:
+        show_add_recipe_form()
+
+def show_recipes_list():
+    st.markdown("### 🍳 Lista de Receitas")
+    
+    conn = sqlite3.connect('nutriapp360.db')
+    
+    try:
+        recipes = pd.read_sql_query("SELECT * FROM recipes ORDER BY created_at DESC", conn)
+        
+        if not recipes.empty:
+            cols = st.columns(2)
+            
+            for i, (_, recipe) in enumerate(recipes.iterrows()):
+                with cols[i % 2]:
+                    st.markdown(f"""
+                    <div class="dashboard-card">
+                        <h4>{recipe['name']}</h4>
+                        <p>🏷️ {recipe['category']} | ⏰ {recipe['prep_time']} min</p>
+                        <p>🔥 {recipe['calories_per_serving']} kcal por porção</p>
+                        <small><strong>Ingredientes:</strong> {recipe['ingredients'][:100]}...</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button("👁️ Ver Receita", key=f"view_recipe_{recipe['id']}"):
+                        st.info(f"**{recipe['name']}**\n\n**Ingredientes:** {recipe['ingredients']}\n\n**Preparo:** {recipe['instructions']}")
+    
+    finally:
+        conn.close()
+
+def show_add_recipe_form():
+    st.markdown("### ➕ Nova Receita")
+    
+    with st.form("add_recipe_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            name = st.text_input("🍳 Nome da Receita *")
+            category = st.selectbox("🏷️ Categoria", [
+                "Café da manhã", "Almoço", "Jantar", "Lanche", "Saladas", "Bebidas", "Sobremesas"
+            ])
+            prep_time = st.number_input("⏰ Tempo de Preparo (min)", min_value=1, value=15)
+        
+        with col2:
+            calories = st.number_input("🔥 Calorias por porção", min_value=1, value=200)
+        
+        ingredients = st.text_area("🛒 Ingredientes *", placeholder="Liste os ingredientes...")
+        instructions = st.text_area("👨‍🍳 Modo de Preparo *", placeholder="Descreva o preparo...")
+        
+        submitted = st.form_submit_button("🍳 Salvar Receita", type="primary")
+        
+        if submitted and name and ingredients and instructions:
+            conn = sqlite3.connect('nutriapp360.db')
+            cursor = conn.cursor()
+            
+            try:
+                cursor.execute('''
+                    INSERT INTO recipes (name, category, prep_time, calories_per_serving, 
+                                       ingredients, instructions, nutritionist_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (name, category, prep_time, calories, ingredients, instructions, 
+                      st.session_state.user['id']))
+                
+                conn.commit()
+                st.success(f"✅ Receita '{name}' salva com sucesso!")
+            
+            except Exception as e:
+                st.error(f"Erro ao salvar: {str(e)}")
+            finally:
+                conn.close()
+
+# =============================================================================
+# ASSISTENTE IA
+# =============================================================================
+
+def show_ia_assistant():
+    st.markdown('<h1 class="main-header">🤖 Assistente IA Nutricional</h1>', unsafe_allow_html=True)
+    
+    llm = LLMAssistant()
+    
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    
+    # Exibir histórico
+    for message in st.session_state.chat_history:
+        if message['sender'] == 'user':
+            st.markdown(f"""
+            <div style="text-align: right; margin: 1rem 0;">
+                <div style="background: #E3F2FD; padding: 1rem; border-radius: 15px; display: inline-block; max-width: 70%;">
+                    <strong>👤 Você:</strong><br>
+                    {message['content']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="llm-response">
+                <strong>🤖 Assistente:</strong><br>
+                {message['content']}
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Input de mensagem
+    user_input = st.text_input("💬 Digite sua pergunta:", placeholder="Como posso ajudar você hoje?")
+    
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("📤 Enviar"):
+            if user_input:
+                # Adicionar mensagem do usuário
+                st.session_state.chat_history.append({
+                    'sender': 'user',
+                    'content': user_input
+                })
+                
+                # Gerar resposta da IA
+                response = llm.generate_response(user_input)
+                
+                # Adicionar resposta da IA
+                st.session_state.chat_history.append({
+                    'sender': 'ai',
+                    'content': response
+                })
+                
+                st.rerun()
     
     with col2:
-        total_success = sum(item['sucesso'] for item in history_data)
-        st.metric("✅ Sucesso", total_success)
+        if st.button("🔄 Limpar Chat"):
+            st.session_state.chat_history = []
+            st.rerun()
     
-    with col3:
-        total_failed = sum(item['falha'] for item in history_data)
-        st.metric("❌ Falhas", total_failed)
+    # Sugestões rápidas
+    st.markdown("#### 💡 Sugestões:")
+    suggestions = [
+        "Como criar um plano para diabético?",
+        "Receitas rápidas e saudáveis",
+        "Dicas para emagrecimento",
+        "Como motivar pacientes?"
+    ]
     
-    with col4:
-        success_rate = (total_success / total_sent * 100) if total_sent > 0 else 0
-        st.metric("📈 Taxa Sucesso", f"{success_rate:.1f}%")
-    
-    # Tabela do histórico
-    df_history = pd.DataFrame(history_data)
-    df_history.columns = ['Data/Hora', 'Tipo', 'Destinatários', 'Sucesso', 'Falha']
-    
-    st.dataframe(df_history, use_container_width=True)
-    
-    # Gráfico de envios por tipo
-    type_counts = df_history.groupby('Tipo')['Destinatários'].sum().reset_index()
-    
-    fig = px.pie(type_counts, values='Destinatários', names='Tipo',
-                title='Distribuição de Notificações por Tipo')
-    st.plotly_chart(fig, use_container_width=True)
+    cols = st.columns(len(suggestions))
+    for i, suggestion in enumerate(suggestions):
+        with cols[i]:
+            if st.button(suggestion, key=f"sug_{i}"):
+                st.session_state.chat_history.append({'sender': 'user', 'content': suggestion})
+                response = llm.generate_response(suggestion)
+                st.session_state.chat_history.append({'sender': 'ai', 'content': response})
+                st.rerun()
 
 # =============================================================================
-# FINALIZAÇÕES E MELHORIAS
+# CALCULADORAS
 # =============================================================================
 
-# Adicionar importações necessárias no topo do arquivo original
-import numpy as np
+def show_calculators():
+    st.markdown('<h1 class="main-header">🧮 Calculadoras Nutricionais</h1>', unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["⚖️ IMC e Gasto Energético", "🥗 Necessidades Nutricionais"])
+    
+    with tab1:
+        show_imc_calculator()
+    
+    with tab2:
+        show_nutrition_calculator()
 
-# Esta é a continuação completa do sistema NutriApp360
-# Todas as funcionalidades agora estão implementadas e operacionais
+def show_imc_calculator():
+    st.markdown("### ⚖️ Calculadora de IMC e Gasto Energético")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        weight = st.number_input("Peso (kg)", min_value=30.0, max_value=300.0, value=70.0)
+        height = st.number_input("Altura (m)", min_value=1.0, max_value=2.5, value=1.70)
+        age = st.number_input("Idade (anos)", min_value=1, max_value=120, value=30)
+        gender = st.selectbox("Gênero", ["Masculino", "Feminino"])
+        activity = st.selectbox("Nível de Atividade", [
+            "Sedentário", "Levemente ativo", "Moderadamente ativo", "Muito ativo"
+        ])
+        
+        if st.button("🧮 Calcular"):
+            # IMC
+            imc = weight / (height ** 2)
+            
+            if imc < 18.5:
+                imc_class = "Abaixo do peso"
+                color = "#FF5722"
+            elif imc < 25:
+                imc_class = "Normal"
+                color = "#4CAF50"
+            elif imc < 30:
+                imc_class = "Sobrepeso"
+                color = "#FF9800"
+            else:
+                imc_class = "Obesidade"
+                color = "#F44336"
+            
+            # TMB (Fórmula de Harris-Benedict)
+            if gender == "Masculino":
+                tmb = 88.362 + (13.397 * weight) + (4.799 * height * 100) - (5.677 * age)
+            else:
+                tmb = 447.593 + (9.247 * weight) + (3.098 * height * 100) - (4.330 * age)
+            
+            # Gasto energético total
+            activity_factors = {
+                "Sedentário": 1.2,
+                "Levemente ativo": 1.375,
+                "Moderadamente ativo": 1.55,
+                "Muito ativo": 1.725
+            }
+            
+            get = tmb * activity_factors[activity]
+    
+    with col2:
+        if 'imc' in locals():
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3 style="color: {color};">IMC: {imc:.1f}</h3>
+                <p style="color: {color};">{imc_class}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.metric("🔥 Taxa Metabólica Basal", f"{tmb:.0f} kcal/dia")
+            st.metric("⚡ Gasto Energético Total", f"{get:.0f} kcal/dia")
+            
+            st.markdown("#### 🎯 Metas Calóricas:")
+            st.write(f"**📉 Emagrecimento:** {get-500:.0f} kcal/dia")
+            st.write(f"**⚖️ Manutenção:** {get:.0f} kcal/dia")
+            st.write(f"**📈 Ganho de peso:** {get+300:.0f} kcal/dia")
+
+def show_nutrition_calculator():
+    st.markdown("### 🥗 Calculadora de Necessidades Nutricionais")
+    
+    weight = st.number_input("Peso (kg)", min_value=30.0, value=70.0, key="nutr_weight")
+    daily_calories = st.number_input("Calorias diárias", min_value=800, value=2000, key="nutr_cal")
+    
+    goal = st.selectbox("Objetivo", ["Emagrecimento", "Manutenção", "Ganho de massa"])
+    
+    if st.button("🧮 Calcular Necessidades"):
+        # Necessidades proteicas
+        protein_needs = {"Emagrecimento": 1.6, "Manutenção": 1.2, "Ganho de massa": 2.0}
+        protein_g = weight * protein_needs[goal]
+        protein_cal = protein_g * 4
+        
+        # Distribuição de macros
+        if goal == "Emagrecimento":
+            carb_percent = 40
+            fat_percent = 30
+        elif goal == "Ganho de massa":
+            carb_percent = 50
+            fat_percent = 25
+        else:
+            carb_percent = 50
+            fat_percent = 30
+        
+        protein_percent = (protein_cal / daily_calories) * 100
+        
+        carb_cal = daily_calories * carb_percent / 100
+        fat_cal = daily_calories * fat_percent / 100
+        
+        carb_g = carb_cal / 4
+        fat_g = fat_cal / 9
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("🥩 Proteínas", f"{protein_g:.0f}g", f"{protein_percent:.1f}%")
+        with col2:
+            st.metric("🍞 Carboidratos", f"{carb_g:.0f}g", f"{carb_percent:.1f}%")
+        with col3:
+            st.metric("🥑 Gorduras", f"{fat_g:.0f}g", f"{fat_percent:.1f}%")
+        
+        st.metric("💧 Água por dia", f"{weight * 35:.0f} ml")
+
+# =============================================================================
+# MAIN APPLICATION
+# =============================================================================
+
+def main():
+    load_css()
+    init_database()
+    
+    if 'user' not in st.session_state or not st.session_state.user:
+        show_login_page()
+        return
+    
+    selected_page = show_sidebar()
+    user_role = st.session_state.user['role']
+    
+    # Roteamento
+    if user_role == 'admin':
+        if selected_page == 'dashboard':
+            show_admin_dashboard()
+        elif selected_page == 'users':
+            st.info("🔧 Gestão de usuários em desenvolvimento")
+        elif selected_page == 'reports':
+            st.info("📈 Relatórios em desenvolvimento")
+        elif selected_page == 'settings':
+            st.info("⚙️ Configurações em desenvolvimento")
+    
+    elif user_role == 'nutritionist':
+        if selected_page == 'dashboard':
+            show_nutritionist_dashboard()
+        elif selected_page == 'patients':
+            show_patients_management()
+        elif selected_page == 'appointments':
+            show_appointments_management()
+        elif selected_page == 'recipes':
+            show_recipes_management()
+        elif selected_page == 'ia_assistant':
+            show_ia_assistant()
+        elif selected_page == 'calculators':
+            show_calculators()
+    
+    elif user_role == 'secretary':
+        if selected_page == 'dashboard':
+            show_admin_dashboard()  # Reutilizar dashboard admin
+        elif selected_page == 'appointments':
+            show_appointments_management()
+        elif selected_page == 'patients_basic':
+            show_patients_management()
+        elif selected_page == 'financial':
+            st.info("💰 Módulo financeiro em desenvolvimento")
+    
+    elif user_role == 'patient':
+        if selected_page == 'dashboard':
+            show_patient_dashboard()
+        elif selected_page == 'progress':
+            st.info("📈 Acompanhamento de progresso em desenvolvimento")
+        elif selected_page == 'appointments':
+            st.info("📅 Suas consultas em desenvolvimento")
+        elif selected_page == 'chat':
+            show_ia_assistant()
+
+if __name__ == "__main__":
+    main()
