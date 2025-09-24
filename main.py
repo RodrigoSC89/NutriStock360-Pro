@@ -2927,10 +2927,6 @@ def show_patient_profile():
     finally:
         conn.close()
 
-# Executar aplicação
-if __name__ == "__main__":
-    main()
-
 def show_financial_management():
     """Sistema financeiro completo"""
     st.markdown('<h1 class="main-header">💰 Sistema Financeiro Completo</h1>', unsafe_allow_html=True)
