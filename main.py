@@ -4172,6 +4172,37 @@ def show_my_goals():
     st.markdown('<h1 class="main-header">🎯 Minhas Metas</h1>', unsafe_allow_html=True)
     st.success("✅ Sistema de metas pessoais implementado.")
 
+# Função principal da aplicação
+def main():
+    """Função principal da aplicação"""
+    load_css()
+    init_database()
+    
+    # Verificar se usuário está logado
+    if 'user' not in st.session_state or not st.session_state.user:
+        show_login_page()
+        return
+    
+    # Sidebar e navegação
+    selected_page = show_sidebar()
+    user_role = st.session_state.user['role']
+    
+    # Roteamento baseado no papel do usuário
+    try:
+        if user_role == 'admin':
+            admin_routes(selected_page)
+        elif user_role == 'nutritionist':
+            nutritionist_routes(selected_page)
+        elif user_role == 'secretary':
+            secretary_routes(selected_page)
+        elif user_role == 'patient':
+            patient_routes(selected_page)
+        else:
+            st.error("❌ Papel de usuário não reconhecido!")
+    except Exception as e:
+        st.error(f"❌ Erro na navegação: {e}")
+        st.info("🔄 Recarregue a página ou faça logout/login novamente")
+
 # Executar aplicação principal
 if __name__ == "__main__":
     main()
@@ -7783,36 +7814,7 @@ def show_sidebar():
     return selected_page
 
 # Roteamento principal robusto
-def main():
-    """Função principal da aplicação"""
-    load_css()
-    init_database()
-    
-    # Verificar se usuário está logado
-    if 'user' not in st.session_state or not st.session_state.user:
-        show_login_page()
-        return
-    
-    # Sidebar e navegação
-    selected_page = show_sidebar()
-    user_role = st.session_state.user['role']
-    
-    # Roteamento baseado no papel do usuário
-    try:
-        if user_role == 'admin':
-            admin_routes(selected_page)
-        elif user_role == 'nutritionist':
-            nutritionist_routes(selected_page)
-        elif user_role == 'secretary':
-            secretary_routes(selected_page)
-        elif user_role == 'patient':
-            patient_routes(selected_page)
-        else:
-            st.error("❌ Papel de usuário não reconhecido!")
-    except Exception as e:
-        st.error(f"❌ Erro na navegação: {e}")
-        st.info("🔄 Recarregue a página ou faça logout/login novamente")
-
+# Funções auxiliares de roteamento
 def admin_routes(page):
     """Rotas para administrador com funcionalidades completas"""
     if page == 'dashboard':
