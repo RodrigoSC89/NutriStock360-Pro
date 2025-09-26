@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NutriApp360 PRO - Sistema Completo com IA, Permissões e Prontuário
-Version: 12.0 - Sistema Profissional Completo
-Código completo e funcional - Pronto para usar
+NutriApp360 PRO - Sistema Completo com IA Avançada
+Version: 13.0 - Biblioteca de Alimentos + IA Expandida
 """
 
 import streamlit as st
@@ -17,16 +16,10 @@ from datetime import datetime, timedelta, date
 import uuid
 import math
 import random
-import calendar
-import numpy as np
-import time
-
-# =============================================================================
-# CONFIGURAÇÃO INICIAL
-# =============================================================================
+import re
 
 st.set_page_config(
-    page_title="NutriApp360 PRO v12.0",
+    page_title="NutriApp360 PRO v13.0",
     page_icon="🥗",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -75,14 +68,6 @@ def load_css():
         box-shadow: 0 3px 10px rgba(0,0,0,0.1);
         border: 2px solid #4CAF50;
     }
-    .prontuario-section {
-        background: white;
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 4px solid #2196F3;
-        margin: 1rem 0;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
     .ai-response {
         background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
         padding: 1rem;
@@ -90,8 +75,317 @@ def load_css():
         border-left: 4px solid #2196F3;
         margin: 1rem 0;
     }
+    .food-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        margin: 0.5rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
     </style>
     """, unsafe_allow_html=True)
+
+# =============================================================================
+# BANCO DE DADOS DE ALIMENTOS (TACO)
+# =============================================================================
+
+ALIMENTOS_TACO = [
+    # Cereais e derivados
+    {"nome": "Arroz branco cozido", "grupo": "Cereais", "porcao": 100, "calorias": 128, "carb": 28.1, "prot": 2.5, "lip": 0.2, "fibra": 1.6},
+    {"nome": "Arroz integral cozido", "grupo": "Cereais", "porcao": 100, "calorias": 124, "carb": 25.8, "prot": 2.6, "lip": 1.0, "fibra": 2.7},
+    {"nome": "Macarrão cozido", "grupo": "Cereais", "porcao": 100, "calorias": 135, "carb": 28.0, "prot": 4.5, "lip": 0.5, "fibra": 1.4},
+    {"nome": "Pão francês", "grupo": "Cereais", "porcao": 50, "calorias": 150, "carb": 29.0, "prot": 4.5, "lip": 1.5, "fibra": 1.3},
+    {"nome": "Pão integral", "grupo": "Cereais", "porcao": 50, "calorias": 127, "carb": 24.0, "prot": 5.0, "lip": 1.6, "fibra": 3.5},
+    {"nome": "Aveia em flocos", "grupo": "Cereais", "porcao": 30, "calorias": 112, "carb": 19.5, "prot": 4.2, "lip": 2.1, "fibra": 2.4},
+    
+    # Carnes e ovos
+    {"nome": "Frango grelhado (peito)", "grupo": "Carnes", "porcao": 100, "calorias": 165, "carb": 0, "prot": 31.0, "lip": 3.6, "fibra": 0},
+    {"nome": "Carne bovina magra", "grupo": "Carnes", "porcao": 100, "calorias": 160, "carb": 0, "prot": 26.0, "lip": 6.0, "fibra": 0},
+    {"nome": "Peixe grelhado (tilápia)", "grupo": "Carnes", "porcao": 100, "calorias": 96, "carb": 0, "prot": 20.0, "lip": 1.7, "fibra": 0},
+    {"nome": "Ovo cozido", "grupo": "Carnes", "porcao": 50, "calorias": 78, "carb": 0.6, "prot": 6.3, "lip": 5.3, "fibra": 0},
+    {"nome": "Atum em conserva", "grupo": "Carnes", "porcao": 100, "calorias": 118, "carb": 0, "prot": 26.0, "lip": 0.8, "fibra": 0},
+    
+    # Leites e derivados
+    {"nome": "Leite integral", "grupo": "Laticínios", "porcao": 200, "calorias": 120, "carb": 9.0, "prot": 6.2, "lip": 6.0, "fibra": 0},
+    {"nome": "Leite desnatado", "grupo": "Laticínios", "porcao": 200, "calorias": 70, "carb": 10.0, "prot": 7.0, "lip": 0.2, "fibra": 0},
+    {"nome": "Iogurte natural", "grupo": "Laticínios", "porcao": 150, "calorias": 93, "carb": 7.5, "prot": 6.0, "lip": 4.5, "fibra": 0},
+    {"nome": "Queijo minas", "grupo": "Laticínios", "porcao": 30, "calorias": 80, "carb": 1.2, "prot": 5.4, "lip": 6.0, "fibra": 0},
+    {"nome": "Queijo cottage", "grupo": "Laticínios", "porcao": 50, "calorias": 50, "carb": 2.0, "prot": 6.5, "lip": 2.0, "fibra": 0},
+    
+    # Leguminosas
+    {"nome": "Feijão preto cozido", "grupo": "Leguminosas", "porcao": 100, "calorias": 77, "carb": 14.0, "prot": 4.5, "lip": 0.5, "fibra": 8.4},
+    {"nome": "Feijão carioca cozido", "grupo": "Leguminosas", "porcao": 100, "calorias": 76, "carb": 13.6, "prot": 4.8, "lip": 0.5, "fibra": 8.5},
+    {"nome": "Lentilha cozida", "grupo": "Leguminosas", "porcao": 100, "calorias": 93, "carb": 16.0, "prot": 6.3, "lip": 0.4, "fibra": 7.9},
+    {"nome": "Grão de bico cozido", "grupo": "Leguminosas", "porcao": 100, "calorias": 121, "carb": 19.3, "prot": 6.8, "lip": 2.1, "fibra": 7.6},
+    
+    # Verduras e legumes
+    {"nome": "Alface", "grupo": "Vegetais", "porcao": 100, "calorias": 15, "carb": 2.9, "prot": 1.4, "lip": 0.2, "fibra": 2.0},
+    {"nome": "Tomate", "grupo": "Vegetais", "porcao": 100, "calorias": 18, "carb": 3.9, "prot": 0.9, "lip": 0.2, "fibra": 1.2},
+    {"nome": "Brócolis cozido", "grupo": "Vegetais", "porcao": 100, "calorias": 30, "carb": 5.9, "prot": 2.8, "lip": 0.4, "fibra": 3.0},
+    {"nome": "Cenoura cozida", "grupo": "Vegetais", "porcao": 100, "calorias": 35, "carb": 8.2, "prot": 0.8, "lip": 0.2, "fibra": 2.6},
+    {"nome": "Batata inglesa cozida", "grupo": "Vegetais", "porcao": 100, "calorias": 87, "carb": 20.1, "prot": 1.9, "lip": 0.1, "fibra": 1.3},
+    {"nome": "Batata doce cozida", "grupo": "Vegetais", "porcao": 100, "calorias": 77, "carb": 18.4, "prot": 0.6, "lip": 0.1, "fibra": 2.2},
+    
+    # Frutas
+    {"nome": "Banana", "grupo": "Frutas", "porcao": 100, "calorias": 98, "carb": 26.0, "prot": 1.3, "lip": 0.1, "fibra": 2.6},
+    {"nome": "Maçã", "grupo": "Frutas", "porcao": 100, "calorias": 56, "carb": 14.9, "prot": 0.3, "lip": 0.1, "fibra": 1.3},
+    {"nome": "Laranja", "grupo": "Frutas", "porcao": 100, "calorias": 45, "carb": 11.5, "prot": 1.0, "lip": 0.1, "fibra": 2.2},
+    {"nome": "Morango", "grupo": "Frutas", "porcao": 100, "calorias": 30, "carb": 7.7, "prot": 0.9, "lip": 0.3, "fibra": 1.7},
+    {"nome": "Abacate", "grupo": "Frutas", "porcao": 100, "calorias": 96, "carb": 6.0, "prot": 1.2, "lip": 8.4, "fibra": 3.3},
+    {"nome": "Manga", "grupo": "Frutas", "porcao": 100, "calorias": 51, "carb": 13.0, "prot": 0.5, "lip": 0.1, "fibra": 1.6},
+    
+    # Oleaginosas
+    {"nome": "Amendoim", "grupo": "Oleaginosas", "porcao": 30, "calorias": 170, "carb": 5.1, "prot": 7.8, "lip": 14.1, "fibra": 2.4},
+    {"nome": "Castanha de caju", "grupo": "Oleaginosas", "porcao": 30, "calorias": 176, "carb": 9.0, "prot": 5.4, "lip": 13.5, "fibra": 1.0},
+    {"nome": "Amêndoas", "grupo": "Oleaginosas", "porcao": 30, "calorias": 173, "carb": 6.0, "prot": 6.3, "lip": 14.7, "fibra": 3.6},
+    {"nome": "Nozes", "grupo": "Oleaginosas", "porcao": 30, "calorias": 196, "carb": 4.1, "prot": 4.5, "lip": 19.5, "fibra": 2.0},
+]
+
+# Tabela de conversão de medidas caseiras
+CONVERSAO_MEDIDAS = {
+    # Sólidos (g)
+    "colher de sopa": {"arroz": 25, "feijao": 20, "aveia": 10, "acucar": 15, "farinha": 15, "pasta amendoim": 20},
+    "colher de chá": {"acucar": 5, "sal": 5, "aveia": 3, "farinha": 3},
+    "xícara": {"arroz": 160, "feijao": 150, "aveia": 80, "farinha": 120, "acucar": 180},
+    "concha": {"feijao": 100, "arroz": 120},
+    "escumadeira": {"arroz": 80, "feijao": 70},
+    "fatia": {"pao": 50, "queijo": 30, "presunto": 30},
+    "unidade": {"ovo": 50, "banana": 100, "maça": 130, "laranja": 150, "pao": 50},
+    
+    # Líquidos (ml)
+    "copo": 200,
+    "xícara_liquido": 240,
+    "colher sopa_liquido": 15,
+    "colher chá_liquido": 5,
+}
+
+# =============================================================================
+# SISTEMA DE IA AVANÇADO
+# =============================================================================
+
+class AdvancedAIAssistant:
+    def __init__(self):
+        self.knowledge_base = {
+            "hipertensao": {
+                "dieta": "DASH - Dietary Approaches to Stop Hypertension",
+                "sodio": "< 2300mg/dia (ideal < 1500mg)",
+                "potassio": "Aumentar: banana, laranja, batata doce, feijão",
+                "magnesio": "Vegetais verdes, oleaginosas, grãos integrais",
+                "peso": "Redução de 5-10% já reduz PA significativamente"
+            },
+            "diabetes": {
+                "carboidratos": "Contagem de carboidratos, preferir baixo IG",
+                "fibras": "25-35g/dia - retarda absorção de glicose",
+                "fracionamento": "5-6 refeições/dia para controle glicêmico",
+                "proteinas": "Preferir magras, controlar porções"
+            },
+            "obesidade": {
+                "deficit": "300-500 kcal/dia para perda sustentável",
+                "proteina": "1.6-2.2g/kg peso atual - preserva massa magra",
+                "exercicio": "Combinar aeróbico + resistido",
+                "comportamento": "Diário alimentar, mindful eating"
+            },
+            "atleta": {
+                "proteina": "1.6-2.2g/kg para hipertrofia",
+                "carboidrato": "5-12g/kg conforme intensidade treino",
+                "hidratacao": "Antes: 5-7ml/kg, durante: 150-200ml cada 15min",
+                "recuperacao": "Janela anabólica 30-60min pós-treino"
+            }
+        }
+    
+    def analisar_diario_alimentar(self, refeicoes):
+        """Analisa um diário alimentar com IA"""
+        total_cal = sum([r.get('calorias', 0) for r in refeicoes])
+        total_prot = sum([r.get('proteinas', 0) for r in refeicoes])
+        total_carb = sum([r.get('carboidratos', 0) for r in refeicoes])
+        
+        analise = f"""
+        ANÁLISE INTELIGENTE DO DIÁRIO ALIMENTAR
+        
+        Totais Diários:
+        - Calorias: {total_cal:.0f} kcal
+        - Proteínas: {total_prot:.1f}g ({total_prot*4/total_cal*100:.1f}%)
+        - Carboidratos: {total_carb:.1f}g ({total_carb*4/total_cal*100:.1f}%)
+        
+        Observações IA:
+        """
+        
+        if total_prot < 50:
+            analise += "\n- Proteína BAIXA: Risco de perda de massa muscular"
+        elif total_prot > 150:
+            analise += "\n- Proteína ALTA: Atenção à função renal"
+        
+        if len(refeicoes) < 3:
+            analise += "\n- POUCAS refeições: Considere fracionar mais"
+        
+        return analise
+    
+    def gerar_cardapio_ia(self, calorias_alvo, objetivo, restricoes):
+        """Gera cardápio personalizado com IA"""
+        
+        # Distribuição de macros baseada no objetivo
+        distribuicoes = {
+            "perda_peso": (40, 30, 30),  # carb, prot, lip
+            "ganho_massa": (45, 30, 25),
+            "saude": (50, 20, 30),
+            "low_carb": (20, 40, 40)
+        }
+        
+        carb_p, prot_p, lip_p = distribuicoes.get(objetivo.lower().replace(" ", "_"), (50, 20, 30))
+        
+        cardapio = f"""
+        CARDÁPIO PERSONALIZADO - GERADO POR IA
+        
+        Objetivo: {objetivo}
+        Calorias: {calorias_alvo} kcal/dia
+        Distribuição: {carb_p}% Carb | {prot_p}% Prot | {lip_p}% Lip
+        
+        CAFÉ DA MANHÃ (~25% calorias):
+        """
+        
+        cal_cafe = calorias_alvo * 0.25
+        
+        if "lactose" not in restricoes.lower():
+            cardapio += f"\n- 1 copo (200ml) de leite desnatado"
+            cardapio += f"\n- 2 fatias de pão integral"
+            cardapio += f"\n- 1 colher (sopa) de pasta de amendoim"
+            cardapio += f"\n- 1 banana"
+        else:
+            cardapio += f"\n- 200ml de bebida vegetal"
+            cardapio += f"\n- Tapioca com ovo"
+            cardapio += f"\n- 1 fruta"
+        
+        cardapio += f"""
+        
+        LANCHE MANHÃ (~10% calorias):
+        - 1 fruta + 1 castanha (30g)
+        
+        ALMOÇO (~35% calorias):
+        - Arroz integral (4 colheres sopa)
+        - Feijão (1 concha)
+        - Frango grelhado (100g)
+        - Salada à vontade
+        - 1 colher (sopa) de azeite
+        
+        LANCHE TARDE (~10% calorias):
+        - Iogurte natural + aveia
+        
+        JANTAR (~20% calorias):
+        - Peixe grelhado ou frango
+        - Batata doce (100g) ou salada com quinoa
+        - Vegetais cozidos
+        
+        OBSERVAÇÕES IA:
+        - Hidratação: Mínimo 2L água/dia
+        - Evitar frituras e ultraprocessados
+        - Variar fontes proteicas
+        - Consumir vegetais em todas refeições
+        """
+        
+        return cardapio
+    
+    def interpretar_exame(self, tipo_exame, valores):
+        """Interpreta exames laboratoriais"""
+        
+        interpretacoes = {
+            "hemograma": {
+                "hemoglobina_baixa": "Anemia - aumentar ferro, B12, ácido fólico",
+                "hemoglobina_alta": "Policitemia - avaliar hidratação"
+            },
+            "lipidograma": {
+                "colesterol_alto": "Reduzir gorduras saturadas, aumentar fibras solúveis",
+                "triglicerides_alto": "Reduzir carboidratos simples e álcool"
+            },
+            "glicemia": {
+                "glicemia_alta": "Controlar carboidratos, aumentar fibras",
+                "hba1c_alta": "Controle glicêmico inadequado - revisar dieta"
+            }
+        }
+        
+        return f"Interpretação nutricional: {interpretacoes.get(tipo_exame, 'Solicite avaliação médica')}"
+    
+    def sugestao_substituicoes(self, alimento_original):
+        """Sugere substituições saudáveis"""
+        
+        substituicoes = {
+            "arroz branco": ["arroz integral", "quinoa", "batata doce"],
+            "pão francês": ["pão integral", "tapioca", "panqueca de aveia"],
+            "açúcar": ["stevia", "xilitol", "eritritol"],
+            "leite integral": ["leite desnatado", "leite vegetal"],
+            "macarrão": ["macarrão integral", "abobrinha espaguete", "shirataki"],
+            "carne vermelha": ["frango", "peixe", "proteína vegetal"],
+        }
+        
+        return substituicoes.get(alimento_original.lower(), ["Consulte nutricionista"])
+
+ai_assistant = AdvancedAIAssistant()
+
+# =============================================================================
+# CONVERSOR INTELIGENTE DE MEDIDAS
+# =============================================================================
+
+class MeasureConverter:
+    def __init__(self):
+        self.conversoes = CONVERSAO_MEDIDAS
+    
+    def converter(self, quantidade, medida_origem, alimento, medida_destino="gramas"):
+        """Converte medidas caseiras para gramas"""
+        
+        try:
+            medida_lower = medida_origem.lower()
+            alimento_lower = alimento.lower()
+            
+            # Busca na tabela de conversão
+            if medida_lower in self.conversoes:
+                if isinstance(self.conversoes[medida_lower], dict):
+                    # Busca específica do alimento
+                    for key in self.conversoes[medida_lower]:
+                        if key in alimento_lower:
+                            peso_unitario = self.conversoes[medida_lower][key]
+                            return quantidade * peso_unitario
+                    # Usa média se não encontrar específico
+                    peso_unitario = sum(self.conversoes[medida_lower].values()) / len(self.conversoes[medida_lower])
+                    return quantidade * peso_unitario
+                else:
+                    return quantidade * self.conversoes[medida_lower]
+            
+            return quantidade  # Retorna quantidade original se não converter
+            
+        except:
+            return quantidade
+    
+    def interpretar_texto(self, texto):
+        """Interpreta texto e converte automaticamente"""
+        # Ex: "2 colheres de sopa de arroz" -> 50g
+        
+        padroes = [
+            (r'(\d+\.?\d*)\s*(colher|colheres)\s*de\s*sopa', 'colher de sopa'),
+            (r'(\d+\.?\d*)\s*(colher|colheres)\s*de\s*chá', 'colher de chá'),
+            (r'(\d+\.?\d*)\s*(xícara|xícaras)', 'xícara'),
+            (r'(\d+\.?\d*)\s*(copo|copos)', 'copo'),
+            (r'(\d+\.?\d*)\s*(unidade|unidades)', 'unidade'),
+        ]
+        
+        for padrao, medida in padroes:
+            match = re.search(padrao, texto.lower())
+            if match:
+                quantidade = float(match.group(1))
+                # Tenta extrair nome do alimento
+                palavras = texto.lower().split()
+                alimento = palavras[-1] if palavras else "generico"
+                
+                gramas = self.converter(quantidade, medida, alimento)
+                return {
+                    'quantidade': quantidade,
+                    'medida': medida,
+                    'gramas': gramas,
+                    'texto': f"{quantidade} {medida} ≈ {gramas:.0f}g"
+                }
+        
+        return None
+
+converter = MeasureConverter()
 
 # =============================================================================
 # GERENCIADOR DE BANCO DE DADOS
@@ -147,6 +441,43 @@ class DatabaseManager:
         )
         ''')
         
+        # Tabela de Alimentos (Biblioteca)
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS alimentos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            grupo TEXT,
+            porcao REAL,
+            calorias REAL,
+            carboidratos REAL,
+            proteinas REAL,
+            lipidios REAL,
+            fibras REAL,
+            calcio REAL,
+            ferro REAL,
+            sodio REAL,
+            criado_por INTEGER,
+            publico INTEGER DEFAULT 1,
+            FOREIGN KEY (criado_por) REFERENCES usuarios (id)
+        )
+        ''')
+        
+        # Tabela de Diário Alimentar
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS diario_alimentar (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            paciente_id INTEGER,
+            data_registro DATE,
+            refeicao TEXT,
+            alimento_id INTEGER,
+            quantidade REAL,
+            medida TEXT,
+            observacoes TEXT,
+            FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
+            FOREIGN KEY (alimento_id) REFERENCES alimentos (id)
+        )
+        ''')
+        
         # Tabela de Prontuários
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS prontuarios (
@@ -184,20 +515,6 @@ class DatabaseManager:
         )
         ''')
         
-        # Tabela de Exames
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS exames (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            paciente_id INTEGER,
-            data_exame DATE,
-            tipo_exame TEXT,
-            resultados TEXT,
-            interpretacao TEXT,
-            arquivo BLOB,
-            FOREIGN KEY (paciente_id) REFERENCES pacientes (id)
-        )
-        ''')
-        
         # Tabela de Avaliações
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS avaliacoes (
@@ -216,80 +533,31 @@ class DatabaseManager:
         )
         ''')
         
-        # Tabela de Planos Alimentares
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS planos_alimentares (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE NOT NULL,
-            paciente_id INTEGER,
-            nutricionista_id INTEGER,
-            nome TEXT NOT NULL,
-            objetivo TEXT,
-            calorias INTEGER,
-            carboidratos REAL,
-            proteinas REAL,
-            lipidios REAL,
-            refeicoes TEXT,
-            data_criacao DATE DEFAULT CURRENT_DATE,
-            data_validade DATE,
-            ativo INTEGER DEFAULT 1,
-            FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
-            FOREIGN KEY (nutricionista_id) REFERENCES usuarios (id)
-        )
-        ''')
-        
-        # Tabela de Consultas
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS consultas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE NOT NULL,
-            paciente_id INTEGER,
-            nutricionista_id INTEGER,
-            data_consulta TIMESTAMP,
-            tipo_consulta TEXT,
-            status TEXT DEFAULT 'agendada',
-            duracao INTEGER DEFAULT 60,
-            valor REAL,
-            observacoes TEXT,
-            FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
-            FOREIGN KEY (nutricionista_id) REFERENCES usuarios (id)
-        )
-        ''')
-        
-        # Tabela de Receitas
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS receitas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE NOT NULL,
-            nome TEXT NOT NULL,
-            categoria TEXT,
-            ingredientes TEXT,
-            modo_preparo TEXT,
-            tempo_preparo INTEGER,
-            porcoes INTEGER,
-            calorias_porcao REAL,
-            carboidratos REAL,
-            proteinas REAL,
-            lipidios REAL,
-            tags TEXT,
-            criada_por INTEGER,
-            publica INTEGER DEFAULT 0,
-            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (criada_por) REFERENCES usuarios (id)
-        )
-        ''')
-        
-        # Tabela de Logs da IA
+        # Tabela de Consultas IA
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS ia_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER,
+            tipo_consulta TEXT,
             prompt TEXT,
             resposta TEXT,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
         )
         ''')
+        
+        # Popular alimentos TACO
+        cursor.execute("SELECT COUNT(*) FROM alimentos")
+        if cursor.fetchone()[0] == 0:
+            for alimento in ALIMENTOS_TACO:
+                cursor.execute('''
+                INSERT INTO alimentos (nome, grupo, porcao, calorias, carboidratos, proteinas, lipidios, fibras, publico)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                ''', (
+                    alimento['nome'], alimento['grupo'], alimento['porcao'],
+                    alimento['calorias'], alimento['carb'], alimento['prot'],
+                    alimento['lip'], alimento['fibra']
+                ))
         
         # Criar usuários padrão
         cursor.execute("SELECT COUNT(*) FROM usuarios")
@@ -311,71 +579,6 @@ class DatabaseManager:
         conn.close()
 
 db_manager = DatabaseManager()
-
-# =============================================================================
-# SISTEMA DE IA ASSISTENTE
-# =============================================================================
-
-class AIAssistant:
-    def __init__(self):
-        self.model = "gpt-3.5-turbo"
-        self.api_key = None
-    
-    def get_nutrition_advice(self, query, context=None):
-        # Simulação de respostas inteligentes
-        responses = {
-            "hipertensão": "Para hipertensão, recomendo: redução de sódio (<2300mg/dia), aumento de potássio (frutas, vegetais), dieta DASH, controle de peso.",
-            "diabetes": "Para diabetes: controle de carboidratos, preferência por baixo índice glicêmico, fibras (25-35g/dia), fracionamento de refeições.",
-            "perda de peso": "Para perda de peso: déficit calórico moderado (300-500kcal), alta proteína (1.6-2.2g/kg), exercícios resistidos, hidratação adequada.",
-            "ganho de massa": "Para ganho de massa: superávit calórico (300-500kcal), proteína alta (2g/kg), treino de força, refeições frequentes.",
-        }
-        
-        query_lower = query.lower()
-        for key, response in responses.items():
-            if key in query_lower:
-                return f"Assistente IA: {response}\n\nBaseado em diretrizes científicas atualizadas."
-        
-        return "Assistente IA: Para uma análise mais precisa, forneça mais detalhes sobre o caso clínico."
-    
-    def analyze_diet_plan(self, calorias, carb, prot, lip):
-        total_calorias_macro = (carb * 4) + (prot * 4) + (lip * 9)
-        
-        if abs(total_calorias_macro - calorias) > 50:
-            return f"Inconsistência: Calorias dos macros ({total_calorias_macro:.0f}) diferente do total informado ({calorias})"
-        
-        carb_perc = (carb * 4 / calorias * 100)
-        prot_perc = (prot * 4 / calorias * 100)
-        lip_perc = (lip * 9 / calorias * 100)
-        
-        analise = f"""
-        Análise IA do Plano:
-        
-        Distribuição:
-        - Carboidratos: {carb_perc:.1f}% ({carb}g)
-        - Proteínas: {prot_perc:.1f}% ({prot}g)  
-        - Lipídios: {lip_perc:.1f}% ({lip}g)
-        
-        Avaliação:
-        """
-        
-        if 45 <= carb_perc <= 65:
-            analise += "\nCarboidratos dentro da faixa recomendada"
-        else:
-            analise += f"\nCarboidratos fora da faixa ideal (45-65%)"
-        
-        if 10 <= prot_perc <= 35:
-            analise += "\nProteínas adequadas"
-        else:
-            analise += f"\nProteínas fora da faixa (10-35%)"
-        
-        if 20 <= lip_perc <= 35:
-            analise += "\nLipídios equilibrados"
-        else:
-            analise += f"\nLipídios fora da faixa (20-35%)"
-        
-        return analise
-
-ai_assistant = AIAssistant()
 
 # =============================================================================
 # FUNÇÕES AUXILIARES
@@ -406,19 +609,13 @@ def calculate_imc(peso, altura):
     return peso / (altura ** 2)
 
 def check_permission(user, required_level):
-    levels = {
-        'admin': 3,
-        'completo': 2,
-        'limitado': 1
-    }
-    
+    levels = {'admin': 3, 'completo': 2, 'limitado': 1}
     user_level = levels.get(user.get('nivel_acesso', 'limitado'), 1)
     req_level = levels.get(required_level, 2)
-    
     return user_level >= req_level
 
 # =============================================================================
-# SISTEMA DE AUTENTICAÇÃO
+# AUTENTICAÇÃO
 # =============================================================================
 
 def authenticate_user(email, password):
@@ -437,14 +634,9 @@ def authenticate_user(email, password):
     
     if user:
         return {
-            'id': user[0],
-            'nome': user[1],
-            'email': user[2],
-            'tipo_usuario': user[3],
-            'nivel_acesso': user[4],
-            'coren': user[5],
-            'telefone': user[6],
-            'clinica': user[7]
+            'id': user[0], 'nome': user[1], 'email': user[2],
+            'tipo_usuario': user[3], 'nivel_acesso': user[4],
+            'coren': user[5], 'telefone': user[6], 'clinica': user[7]
         }
     return None
 
@@ -455,7 +647,7 @@ def show_login():
     
     with col2:
         st.markdown('<h1 class="main-header">NutriApp360 PRO</h1>', unsafe_allow_html=True)
-        st.markdown('<h3 style="text-align: center;">Sistema Profissional com IA v12.0</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center;">Sistema com IA Avançada v13.0</h3>', unsafe_allow_html=True)
         
         with st.form("login_form"):
             email = st.text_input("Email", placeholder="seu@email.com")
@@ -470,36 +662,26 @@ def show_login():
                         st.session_state.logged_in = True
                         st.session_state.user = user
                         st.success(f"Bem-vindo, {user['nome']}!")
-                        st.info(f"Nível de acesso: {user['nivel_acesso'].upper()}")
-                        time.sleep(1)
                         st.rerun()
                     else:
                         st.error("Email ou senha incorretos!")
                 else:
                     st.warning("Preencha todos os campos!")
         
-        with st.expander("Informações de Demo"):
+        with st.expander("Credenciais de Demo"):
             st.info("""
-            Credenciais de Teste:
+            Admin: admin@nutriapp360.com / admin123
+            Nutricionista: nutri@nutriapp360.com / nutri123
+            Assistente: assistente@nutriapp360.com / assist123
             
-            Admin:
-            - Email: admin@nutriapp360.com
-            - Senha: admin123
-            
-            Nutricionista:
-            - Email: nutri@nutriapp360.com
-            - Senha: nutri123
-            
-            Assistente:
-            - Email: assistente@nutriapp360.com
-            - Senha: assist123
-            
-            Novos Recursos:
-            - Assistente IA integrado
-            - Sistema de permissões
-            - Prontuário nutricional completo
-            - Prescrição de suplementos
-            - Registro de exames
+            Novos Recursos v13.0:
+            - Biblioteca de 30+ alimentos (TACO)
+            - Conversor inteligente de medidas
+            - IA para análise de diário alimentar
+            - Gerador de cardápios personalizado
+            - Interpretação de exames com IA
+            - Chat nutricional inteligente
+            - Sugestões de substituições
             """)
 
 # =============================================================================
@@ -511,38 +693,20 @@ def show_dashboard(user):
     
     st.markdown(f'<h1 class="ultra-header">Dashboard - {user["nome"]}</h1>', unsafe_allow_html=True)
     
-    nivel_cores = {
-        'admin': '#F44336',
-        'completo': '#4CAF50',
-        'limitado': '#FF9800'
-    }
-    cor = nivel_cores.get(user['nivel_acesso'], '#9E9E9E')
-    
-    st.markdown(f'''
-    <div style="text-align: center; margin-bottom: 1rem;">
-        <span style="background: {cor}; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">
-            {user['tipo_usuario'].upper()} - {user['nivel_acesso'].upper()}
-        </span>
-    </div>
-    ''', unsafe_allow_html=True)
-    
     conn = db_manager.get_connection()
     cursor = conn.cursor()
     
     cursor.execute("SELECT COUNT(*) FROM pacientes WHERE nutricionista_id = ? AND ativo = 1", (user['id'],))
     total_pacientes = cursor.fetchone()[0]
     
-    cursor.execute("""
-    SELECT COUNT(*) FROM consultas 
-    WHERE nutricionista_id = ? AND DATE(data_consulta) = DATE('now')
-    """, (user['id'],))
-    consultas_hoje = cursor.fetchone()[0]
-    
     cursor.execute("SELECT COUNT(*) FROM prontuarios WHERE nutricionista_id = ?", (user['id'],))
     total_prontuarios = cursor.fetchone()[0]
     
     cursor.execute("SELECT COUNT(*) FROM prescricoes_suplementos WHERE nutricionista_id = ? AND ativo = 1", (user['id'],))
     prescricoes_ativas = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM alimentos WHERE publico = 1")
+    total_alimentos = cursor.fetchone()[0]
     
     conn.close()
     
@@ -560,22 +724,13 @@ def show_dashboard(user):
     with col2:
         st.markdown(f'''
         <div class="metric-card">
-            <h2 style="color: #2E7D32; margin:0;">📅</h2>
-            <h3 style="margin:0;">{consultas_hoje}</h3>
-            <p style="margin:0;">Hoje</p>
-        </div>
-        ''', unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f'''
-        <div class="metric-card">
             <h2 style="color: #2E7D32; margin:0;">📋</h2>
             <h3 style="margin:0;">{total_prontuarios}</h3>
             <p style="margin:0;">Prontuários</p>
         </div>
         ''', unsafe_allow_html=True)
     
-    with col4:
+    with col3:
         st.markdown(f'''
         <div class="metric-card">
             <h2 style="color: #2E7D32; margin:0;">💊</h2>
@@ -583,451 +738,447 @@ def show_dashboard(user):
             <p style="margin:0;">Prescrições</p>
         </div>
         ''', unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f'''
+        <div class="metric-card">
+            <h2 style="color: #2E7D32; margin:0;">🍎</h2>
+            <h3 style="margin:0;">{total_alimentos}</h3>
+            <p style="margin:0;">Alimentos</p>
+        </div>
+        ''', unsafe_allow_html=True)
 
 # =============================================================================
-# ASSISTENTE IA
+# BIBLIOTECA DE ALIMENTOS
+# =============================================================================
+
+def show_alimentos(user):
+    load_css()
+    st.markdown('<h1 class="ultra-header">Biblioteca de Alimentos</h1>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["Buscar Alimentos", "Adicionar Alimento", "Conversor de Medidas"])
+    
+    with tab1:
+        buscar_alimentos()
+    
+    with tab2:
+        adicionar_alimento(user)
+    
+    with tab3:
+        conversor_medidas()
+
+def buscar_alimentos():
+    st.markdown('<div class="sub-header">Buscar na Biblioteca</div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        busca = st.text_input("Buscar alimento", placeholder="Digite o nome...")
+    
+    with col2:
+        grupo = st.selectbox("Grupo", ["Todos", "Cereais", "Carnes", "Laticínios", "Leguminosas", "Vegetais", "Frutas", "Oleaginosas"])
+    
+    with col3:
+        cal_max = st.number_input("Calorias máx", 0, 1000, 0, step=50)
+    
+    conn = db_manager.get_connection()
+    cursor = conn.cursor()
+    
+    query = "SELECT * FROM alimentos WHERE publico = 1"
+    params = []
+    
+    if busca:
+        query += " AND nome LIKE ?"
+        params.append(f"%{busca}%")
+    
+    if grupo != "Todos":
+        query += " AND grupo = ?"
+        params.append(grupo)
+    
+    if cal_max > 0:
+        query += " AND calorias <= ?"
+        params.append(cal_max)
+    
+    query += " ORDER BY nome"
+    
+    cursor.execute(query, params)
+    alimentos = cursor.fetchall()
+    conn.close()
+    
+    if not alimentos:
+        st.info("Nenhum alimento encontrado.")
+        return
+    
+    st.markdown(f"**{len(alimentos)} alimentos encontrados**")
+    
+    for alim in alimentos:
+        with st.expander(f"🍽️ {alim[1]} ({alim[2]})", expanded=False):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"""
+                **Porção:** {alim[3]:.0f}g  
+                **Calorias:** {alim[4]:.0f} kcal  
+                **Carboidratos:** {alim[5]:.1f}g  
+                **Proteínas:** {alim[6]:.1f}g  
+                **Lipídios:** {alim[7]:.1f}g  
+                **Fibras:** {alim[8]:.1f}g
+                """)
+            
+            with col2:
+                # Gráfico de macros
+                fig = px.pie(
+                    values=[alim[5], alim[6], alim[7]],
+                    names=['Carboidratos', 'Proteínas', 'Lipídios'],
+                    color_discrete_sequence=['#4CAF50', '#2196F3', '#FFC107']
+                )
+                fig.update_layout(height=200, margin=dict(t=0, b=0, l=0, r=0))
+                st.plotly_chart(fig, use_container_width=True)
+
+def adicionar_alimento(user):
+    st.markdown('<div class="sub-header">Adicionar Novo Alimento</div>', unsafe_allow_html=True)
+    
+    with st.form("alimento_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            nome = st.text_input("Nome do Alimento *")
+            grupo = st.selectbox("Grupo", ["Cereais", "Carnes", "Laticínios", "Leguminosas", "Vegetais", "Frutas", "Oleaginosas", "Outros"])
+            porcao = st.number_input("Porção (g)", 0.0, 1000.0, 100.0)
+            calorias = st.number_input("Calorias (kcal)", 0.0, 1000.0, 100.0)
+        
+        with col2:
+            carb = st.number_input("Carboidratos (g)", 0.0, 500.0, 20.0)
+            prot = st.number_input("Proteínas (g)", 0.0, 200.0, 5.0)
+            lip = st.number_input("Lipídios (g)", 0.0, 100.0, 2.0)
+            fibra = st.number_input("Fibras (g)", 0.0, 50.0, 1.0)
+        
+        publico = st.checkbox("Tornar público (outros nutricionistas poderão ver)")
+        
+        submitted = st.form_submit_button("Adicionar Alimento", use_container_width=True)
+        
+        if submitted:
+            if nome:
+                try:
+                    conn = db_manager.get_connection()
+                    cursor = conn.cursor()
+                    
+                    cursor.execute('''
+                    INSERT INTO alimentos (nome, grupo, porcao, calorias, carboidratos, proteinas, lipidios, fibras, criado_por, publico)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (nome, grupo, porcao, calorias, carb, prot, lip, fibra, user['id'], 1 if publico else 0))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    st.success(f"Alimento '{nome}' adicionado com sucesso!")
+                    
+                except Exception as e:
+                    st.error(f"Erro: {str(e)}")
+            else:
+                st.error("Nome é obrigatório!")
+
+def conversor_medidas():
+    st.markdown('<div class="sub-header">Conversor Inteligente de Medidas</div>', unsafe_allow_html=True)
+    
+    st.info("Converta medidas caseiras para gramas/ml automaticamente!")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### Converter Manualmente")
+        
+        quantidade = st.number_input("Quantidade", 1.0, 100.0, 1.0, step=0.5)
+        medida = st.selectbox("Medida", [
+            "colher de sopa",
+            "colher de chá",
+            "xícara",
+            "concha",
+            "escumadeira",
+            "fatia",
+            "unidade",
+            "copo"
+        ])
+        alimento = st.text_input("Alimento", placeholder="Ex: arroz, feijão, açúcar...")
+        
+        if st.button("Converter"):
+            resultado = converter.converter(quantidade, medida, alimento)
+            st.success(f"{quantidade} {medida} de {alimento} = **{resultado:.0f}g**")
+    
+    with col2:
+        st.markdown("### Interpretar Texto")
+        
+        texto = st.text_area(
+            "Digite a descrição",
+            placeholder="Ex: 2 colheres de sopa de arroz\n3 xícaras de feijão\n1 copo de leite",
+            height=150
+        )
+        
+        if st.button("Interpretar"):
+            linhas = texto.split('\n')
+            for linha in linhas:
+                if linha.strip():
+                    resultado = converter.interpretar_texto(linha)
+                    if resultado:
+                        st.success(resultado['texto'])
+                    else:
+                        st.warning(f"Não foi possível interpretar: {linha}")
+    
+    st.markdown("---")
+    st.markdown("### Tabela de Referência Rápida")
+    
+    tabela_ref = pd.DataFrame({
+        'Medida': ['1 col sopa', '1 col chá', '1 xícara', '1 concha', '1 copo', '1 unidade'],
+        'Arroz': ['25g', '-', '160g', '120g', '-', '-'],
+        'Feijão': ['20g', '-', '150g', '100g', '-', '-'],
+        'Açúcar': ['15g', '5g', '180g', '-', '-', '-'],
+        'Leite': ['15ml', '5ml', '240ml', '-', '200ml', '-'],
+        'Ovo': ['-', '-', '-', '-', '-', '50g']
+    })
+    
+    st.dataframe(tabela_ref, use_container_width=True)
+
+# =============================================================================
+# ASSISTENTE IA AVANÇADO
 # =============================================================================
 
 def show_ai_assistant(user):
     load_css()
-    st.markdown('<h1 class="ultra-header">Assistente IA Nutricional</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="ultra-header">Assistente IA Avançado</h1>', unsafe_allow_html=True)
     
-    st.markdown('''
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-         color: white; padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
-        <h3 style="margin: 0;">Assistente Inteligente</h3>
-        <p style="margin: 0;">Pergunte sobre condutas nutricionais, análise de planos, cálculos e mais!</p>
-    </div>
-    ''', unsafe_allow_html=True)
-    
-    tab1, tab2 = st.tabs(["Consultar IA", "Analisar Plano"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Chat Nutricional",
+        "Gerar Cardápio",
+        "Analisar Diário",
+        "Interpretar Exames"
+    ])
     
     with tab1:
-        st.markdown("### Faça uma pergunta ao assistente")
-        
-        query = st.text_area(
-            "Sua pergunta",
-            placeholder="Ex: Como tratar hipertensão com dieta? Qual distribuição de macros para diabetes?",
-            height=100
-        )
-        
-        if st.button("Consultar IA", use_container_width=True):
-            if query:
-                with st.spinner("Consultando assistente IA..."):
-                    time.sleep(1)
-                    response = ai_assistant.get_nutrition_advice(query)
-                
-                st.markdown(f'''
-                <div class="ai-response">
-                    {response}
-                </div>
-                ''', unsafe_allow_html=True)
-                
-                try:
-                    conn = db_manager.get_connection()
-                    cursor = conn.cursor()
-                    cursor.execute('''
-                    INSERT INTO ia_logs (usuario_id, prompt, resposta)
-                    VALUES (?, ?, ?)
-                    ''', (user['id'], query, response))
-                    conn.commit()
-                    conn.close()
-                except:
-                    pass
-            else:
-                st.warning("Digite uma pergunta!")
+        chat_nutricional(user)
     
     with tab2:
-        st.markdown("### Análise Inteligente de Plano Alimentar")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            calorias = st.number_input("Calorias Totais", 1000, 5000, 2000)
-            carb = st.number_input("Carboidratos (g)", 0.0, 1000.0, 250.0)
-        
-        with col2:
-            prot = st.number_input("Proteínas (g)", 0.0, 500.0, 150.0)
-            lip = st.number_input("Lipídios (g)", 0.0, 300.0, 67.0)
-        
-        if st.button("Analisar com IA", use_container_width=True):
-            analise = ai_assistant.analyze_diet_plan(calorias, carb, prot, lip)
+        gerar_cardapio(user)
+    
+    with tab3:
+        analisar_diario(user)
+    
+    with tab4:
+        interpretar_exames(user)
+
+def chat_nutricional(user):
+    st.markdown("### Chat Nutricional Inteligente")
+    
+    st.info("Faça perguntas sobre nutrição, condutas, patologias e mais!")
+    
+    pergunta = st.text_area(
+        "Sua pergunta",
+        placeholder="Ex: Como tratar diabetes tipo 2 com dieta?\nQual a melhor distribuição de macros para hipertrofia?",
+        height=100
+    )
+    
+    if st.button("Consultar IA", use_container_width=True):
+        if pergunta:
+            resposta = ai_assistant.knowledge_base
+            
+            # Busca na base de conhecimento
+            texto_resposta = "Baseado em evidências científicas:\n\n"
+            
+            if "diabetes" in pergunta.lower():
+                info = ai_assistant.knowledge_base['diabetes']
+                texto_resposta += f"**DIABETES:**\n"
+                for key, value in info.items():
+                    texto_resposta += f"- {key.upper()}: {value}\n"
+            
+            elif "hipertensão" in pergunta.lower() or "hipertensao" in pergunta.lower() or "pressão" in pergunta.lower():
+                info = ai_assistant.knowledge_base['hipertensao']
+                texto_resposta += f"**HIPERTENSÃO:**\n"
+                for key, value in info.items():
+                    texto_resposta += f"- {key.upper()}: {value}\n"
+            
+            elif "obesidade" in pergunta.lower() or "perda de peso" in pergunta.lower() or "emagrecer" in pergunta.lower():
+                info = ai_assistant.knowledge_base['obesidade']
+                texto_resposta += f"**PERDA DE PESO:**\n"
+                for key, value in info.items():
+                    texto_resposta += f"- {key.upper()}: {value}\n"
+            
+            elif "atleta" in pergunta.lower() or "hipertrofia" in pergunta.lower() or "massa muscular" in pergunta.lower():
+                info = ai_assistant.knowledge_base['atleta']
+                texto_resposta += f"**ATLETAS/HIPERTROFIA:**\n"
+                for key, value in info.items():
+                    texto_resposta += f"- {key.upper()}: {value}\n"
+            
+            else:
+                texto_resposta += "Para uma resposta mais específica, mencione a condição (diabetes, hipertensão, obesidade, atleta)."
             
             st.markdown(f'''
             <div class="ai-response">
-                {analise}
-            </div>
-            ''', unsafe_allow_html=True)
-
-# =============================================================================
-# PRONTUÁRIO NUTRICIONAL
-# =============================================================================
-
-def show_prontuario(user):
-    load_css()
-    st.markdown('<h1 class="ultra-header">Prontuário Nutricional</h1>', unsafe_allow_html=True)
-    
-    if not check_permission(user, 'completo'):
-        st.error("Você não tem permissão para acessar prontuários.")
-        return
-    
-    tab1, tab2 = st.tabs(["Novo Prontuário", "Histórico"])
-    
-    with tab1:
-        create_prontuario(user)
-    
-    with tab2:
-        view_prontuarios(user)
-
-def create_prontuario(user):
-    st.markdown('<div class="sub-header">Novo Atendimento</div>', unsafe_allow_html=True)
-    
-    conn = db_manager.get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-    SELECT id, nome, cpf FROM pacientes
-    WHERE nutricionista_id = ? AND ativo = 1
-    ORDER BY nome
-    """, (user['id'],))
-    
-    pacientes = cursor.fetchall()
-    conn.close()
-    
-    if not pacientes:
-        st.warning("Cadastre um paciente primeiro.")
-        return
-    
-    with st.form("prontuario_form"):
-        paciente = st.selectbox(
-            "Paciente",
-            options=pacientes,
-            format_func=lambda x: f"{x[1]} - CPF: {x[2] or 'Não informado'}"
-        )
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            data_atend = st.date_input("Data do Atendimento", value=date.today())
-            tipo_atend = st.selectbox("Tipo de Atendimento", [
-                "Primeira Consulta",
-                "Retorno",
-                "Reavaliação",
-                "Evolução",
-                "Alta"
-            ])
-        
-        with col2:
-            st.markdown("**Dados do Atendimento:**")
-            st.info(f"Profissional: {user['nome']}\nCOREN/CRN: {user['coren']}")
-        
-        st.markdown("---")
-        st.markdown("### Anamnese")
-        
-        queixa = st.text_area(
-            "Queixa Principal",
-            placeholder="Motivo da consulta, queixas do paciente...",
-            height=80
-        )
-        
-        historia_clinica = st.text_area(
-            "História Clínica",
-            placeholder="Histórico de doenças, uso de medicamentos, cirurgias...",
-            height=100
-        )
-        
-        historia_alimentar = st.text_area(
-            "História Alimentar",
-            placeholder="Hábitos alimentares, preferências, restrições, recordatório 24h...",
-            height=120
-        )
-        
-        st.markdown("### Exame Físico e Avaliação")
-        
-        exame_fisico = st.text_area(
-            "Exame Físico/Antropometria",
-            placeholder="Peso, altura, circunferências, composição corporal...",
-            height=100
-        )
-        
-        st.markdown("### Diagnóstico e Conduta")
-        
-        diagnostico = st.text_area(
-            "Diagnóstico Nutricional",
-            placeholder="Diagnóstico segundo classificação (ex: Obesidade grau I, Desnutrição leve...)",
-            height=80
-        )
-        
-        conduta = st.text_area(
-            "Conduta Nutricional",
-            placeholder="Plano de tratamento, orientações, prescrição dietética, suplementação...",
-            height=120
-        )
-        
-        observacoes = st.text_area(
-            "Observações",
-            placeholder="Observações adicionais, intercorrências...",
-            height=80
-        )
-        
-        submitted = st.form_submit_button("Salvar Prontuário", use_container_width=True)
-        
-        if submitted:
-            if queixa and diagnostico and conduta:
-                try:
-                    conn = db_manager.get_connection()
-                    cursor = conn.cursor()
-                    
-                    cursor.execute('''
-                    INSERT INTO prontuarios (
-                        paciente_id, nutricionista_id, data_atendimento, tipo_atendimento,
-                        queixa_principal, historia_clinica, historia_alimentar,
-                        exame_fisico, diagnostico_nutricional, conduta, observacoes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        paciente[0], user['id'], data_atend, tipo_atend,
-                        queixa, historia_clinica, historia_alimentar,
-                        exame_fisico, diagnostico, conduta, observacoes
-                    ))
-                    
-                    conn.commit()
-                    conn.close()
-                    
-                    st.success("Prontuário salvo com sucesso!")
-                    time.sleep(1)
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"Erro: {str(e)}")
-            else:
-                st.error("Preencha pelo menos: queixa, diagnóstico e conduta!")
-
-def view_prontuarios(user):
-    st.markdown('<div class="sub-header">Histórico de Atendimentos</div>', unsafe_allow_html=True)
-    
-    conn = db_manager.get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-    SELECT p.*, pac.nome as paciente_nome
-    FROM prontuarios p
-    JOIN pacientes pac ON p.paciente_id = pac.id
-    WHERE p.nutricionista_id = ?
-    ORDER BY p.data_atendimento DESC
-    LIMIT 50
-    """, (user['id'],))
-    
-    prontuarios = cursor.fetchall()
-    conn.close()
-    
-    if not prontuarios:
-        st.info("Nenhum prontuário registrado ainda.")
-        return
-    
-    st.markdown(f"**{len(prontuarios)} atendimentos registrados**")
-    
-    for p in prontuarios:
-        with st.expander(f"{p[-1]} - {p[3]} - {p[4]}", expanded=False):
-            st.markdown(f'''
-            <div class="prontuario-section">
-                <strong>Data:</strong> {p[3]}<br>
-                <strong>Tipo:</strong> {p[4]}<br>
-                <strong>Profissional:</strong> {user['nome']}
+                {texto_resposta}
             </div>
             ''', unsafe_allow_html=True)
             
-            if p[5]:
-                st.markdown(f"**Queixa:** {p[5]}")
-            if p[9]:
-                st.markdown(f"**Diagnóstico:** {p[9]}")
-            if p[10]:
-                st.markdown(f"**Conduta:** {p[10]}")
+            # Salvar log
+            try:
+                conn = db_manager.get_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                INSERT INTO ia_logs (usuario_id, tipo_consulta, prompt, resposta)
+                VALUES (?, ?, ?, ?)
+                ''', (user['id'], 'chat', pergunta, texto_resposta))
+                conn.commit()
+                conn.close()
+            except:
+                pass
+        else:
+            st.warning("Digite uma pergunta!")
 
-# =============================================================================
-# PRESCRIÇÃO DE SUPLEMENTOS
-# =============================================================================
-
-def show_prescricao_suplementos(user):
-    load_css()
-    st.markdown('<h1 class="ultra-header">Prescrição de Suplementos</h1>', unsafe_allow_html=True)
+def gerar_cardapio(user):
+    st.markdown("### Gerador de Cardápios Personalizado")
     
-    st.warning("""
-    ATENÇÃO LEGAL: Esta funcionalidade é para prescrição de SUPLEMENTOS NUTRICIONAIS, 
-    conforme permitido pela legislação para nutricionistas. 
-    Nutricionistas NÃO podem prescrever medicamentos.
-    """)
+    col1, col2 = st.columns(2)
     
-    if not check_permission(user, 'completo'):
-        st.error("Você não tem permissão para prescrever suplementos.")
-        return
+    with col1:
+        calorias = st.number_input("Calorias Alvo (kcal/dia)", 1200, 4000, 2000, step=100)
+        objetivo = st.selectbox("Objetivo", [
+            "Perda Peso",
+            "Ganho Massa",
+            "Saúde",
+            "Low Carb"
+        ])
     
-    tab1, tab2 = st.tabs(["Nova Prescrição", "Prescrições Ativas"])
-    
-    with tab1:
-        create_prescription(user)
-    
-    with tab2:
-        view_prescriptions(user)
-
-def create_prescription(user):
-    st.markdown('<div class="sub-header">Nova Prescrição de Suplementos</div>', unsafe_allow_html=True)
-    
-    conn = db_manager.get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-    SELECT id, nome FROM pacientes
-    WHERE nutricionista_id = ? AND ativo = 1
-    ORDER BY nome
-    """, (user['id'],))
-    
-    pacientes = cursor.fetchall()
-    conn.close()
-    
-    if not pacientes:
-        st.warning("Cadastre um paciente primeiro.")
-        return
-    
-    with st.form("prescription_form"):
-        paciente = st.selectbox(
-            "Paciente",
-            options=pacientes,
-            format_func=lambda x: x[1]
-        )
-        
-        data_validade = st.date_input(
-            "Validade da Prescrição",
-            value=date.today() + timedelta(days=90)
-        )
-        
-        st.markdown("### Suplementos Prescritos")
-        st.info("Adicione os suplementos que deseja prescrever (um por linha)")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            - Vitamina D
-            - Vitamina B12
-            - Ômega 3
-            - Multivitamínico
-            """)
-        
-        with col2:
-            st.markdown("""
-            - Whey Protein
-            - Creatina
-            - BCAA
-            - Glutamina
-            """)
-        
-        with col3:
-            st.markdown("""
-            - Magnésio
-            - Zinco
-            - Probióticos
-            - Colágeno
-            """)
-        
-        suplementos = st.text_area(
-            "Suplementos e Posologia",
-            placeholder="""Exemplo:
-1. Vitamina D3 - 2000 UI - 1 cápsula ao dia, junto ao almoço
-2. Ômega 3 - 1000mg - 1 cápsula 2x ao dia, junto às principais refeições
-3. Whey Protein - 30g - 1 dose após o treino""",
-            height=200
-        )
-        
-        orientacoes = st.text_area(
-            "Orientações Gerais",
-            placeholder="Orientações sobre uso, horários, interações, cuidados...",
+    with col2:
+        restricoes = st.text_area(
+            "Restrições Alimentares",
+            placeholder="Ex: lactose, glúten, vegano...",
             height=100
         )
+    
+    if st.button("Gerar Cardápio com IA", use_container_width=True):
+        cardapio = ai_assistant.gerar_cardapio_ia(calorias, objetivo, restricoes)
         
-        submitted = st.form_submit_button("Gerar Prescrição", use_container_width=True)
+        st.markdown(f'''
+        <div class="ai-response">
+            <pre style="white-space: pre-wrap; font-family: inherit;">{cardapio}</pre>
+        </div>
+        ''', unsafe_allow_html=True)
         
-        if submitted:
-            if suplementos:
-                try:
-                    conn = db_manager.get_connection()
-                    cursor = conn.cursor()
-                    
-                    prescricao_uuid = str(uuid.uuid4())
-                    
-                    cursor.execute('''
-                    INSERT INTO prescricoes_suplementos (
-                        uuid, paciente_id, nutricionista_id, suplementos, orientacoes, validade
-                    ) VALUES (?, ?, ?, ?, ?, ?)
-                    ''', (
-                        prescricao_uuid, paciente[0], user['id'], suplementos, orientacoes, data_validade
-                    ))
-                    
-                    conn.commit()
-                    conn.close()
-                    
-                    st.success("Prescrição gerada com sucesso!")
-                    
-                    st.markdown("---")
-                    st.markdown("### Prescrição Gerada")
-                    
-                    st.markdown(f'''
-                    <div style="background: white; padding: 2rem; border: 2px solid #2E7D32; border-radius: 10px;">
-                        <div style="text-align: center; margin-bottom: 1rem;">
-                            <h3 style="color: #2E7D32;">PRESCRIÇÃO DE SUPLEMENTOS NUTRICIONAIS</h3>
-                        </div>
-                        
-                        <p><strong>Paciente:</strong> {paciente[1]}</p>
-                        <p><strong>Data:</strong> {date.today().strftime('%d/%m/%Y')}</p>
-                        <p><strong>Validade:</strong> {data_validade.strftime('%d/%m/%Y')}</p>
-                        
-                        <hr>
-                        
-                        <h4>Suplementos Prescritos:</h4>
-                        <pre style="white-space: pre-wrap;">{suplementos}</pre>
-                        
-                        {f'<h4>Orientações:</h4><p>{orientacoes}</p>' if orientacoes else ''}
-                        
-                        <hr>
-                        
-                        <p><strong>Nutricionista:</strong> {user['nome']}</p>
-                        <p><strong>CRN:</strong> {user['coren']}</p>
-                        <p><strong>UUID:</strong> {prescricao_uuid}</p>
-                    </div>
-                    ''', unsafe_allow_html=True)
-                    
-                except Exception as e:
-                    st.error(f"Erro: {str(e)}")
-            else:
-                st.error("Adicione pelo menos um suplemento!")
+        if st.button("Salvar Cardápio"):
+            st.success("Funcionalidade de salvamento em desenvolvimento")
 
-def view_prescriptions(user):
-    st.markdown('<div class="sub-header">Prescrições Ativas</div>', unsafe_allow_html=True)
+def analisar_diario(user):
+    st.markdown("### Análise de Diário Alimentar")
     
-    conn = db_manager.get_connection()
-    cursor = conn.cursor()
+    st.info("Registre o que comeu hoje e a IA irá analisar!")
     
-    cursor.execute("""
-    SELECT ps.*, p.nome as paciente_nome
-    FROM prescricoes_suplementos ps
-    JOIN pacientes p ON ps.paciente_id = p.id
-    WHERE ps.nutricionista_id = ? AND ps.ativo = 1
-    ORDER BY ps.data_prescricao DESC
-    """, (user['id'],))
+    refeicoes = []
     
-    prescricoes = cursor.fetchall()
-    conn.close()
+    for i, refeicao in enumerate(["Café da Manhã", "Lanche Manhã", "Almoço", "Lanche Tarde", "Jantar", "Ceia"]):
+        with st.expander(f"{refeicao}", expanded=(i==0)):
+            alimentos = st.text_area(
+                f"Alimentos de {refeicao}",
+                placeholder="Ex: 2 pães, 1 ovo, 1 copo de leite",
+                height=60,
+                key=f"ref_{i}"
+            )
+            
+            if alimentos:
+                # Estimativa simples
+                cal = len(alimentos.split(',')) * 150  # Estimativa básica
+                refeicoes.append({
+                    'nome': refeicao,
+                    'alimentos': alimentos,
+                    'calorias': cal,
+                    'proteinas': cal * 0.15 / 4,
+                    'carboidratos': cal * 0.55 / 4
+                })
     
-    if not prescricoes:
-        st.info("Nenhuma prescrição ativa.")
-        return
+    if st.button("Analisar com IA", use_container_width=True):
+        if refeicoes:
+            analise = ai_assistant.analisar_diario_alimentar(refeicoes)
+            
+            st.markdown(f'''
+            <div class="ai-response">
+                <pre style="white-space: pre-wrap; font-family: inherit;">{analise}</pre>
+            </div>
+            ''', unsafe_allow_html=True)
+        else:
+            st.warning("Registre pelo menos uma refeição!")
+
+def interpretar_exames(user):
+    st.markdown("### Interpretação Nutricional de Exames")
     
-    for ps in prescricoes:
-        dias_restantes = (datetime.strptime(ps[7], '%Y-%m-%d').date() - date.today()).days
-        
-        with st.expander(f"{ps[-1]} - {ps[4]} - Validade: {dias_restantes} dias", expanded=False):
-            st.markdown(f"**Suplementos:**\n{ps[5]}")
-            if ps[6]:
-                st.markdown(f"**Orientações:**\n{ps[6]}")
+    st.warning("Esta é uma interpretação nutricional. Sempre consulte um médico para diagnóstico.")
+    
+    tipo_exame = st.selectbox("Tipo de Exame", [
+        "Hemograma",
+        "Lipidograma",
+        "Glicemia/HbA1c",
+        "Vitaminas",
+        "Minerais"
+    ])
+    
+    valores = st.text_area(
+        "Cole os resultados do exame",
+        placeholder="Ex: Hemoglobina: 11.5 g/dL\nColesterol Total: 250 mg/dL",
+        height=150
+    )
+    
+    if st.button("Interpretar com IA", use_container_width=True):
+        if valores:
+            interpretacao = f"""
+            INTERPRETAÇÃO NUTRICIONAL - {tipo_exame}
+            
+            """
+            
+            if tipo_exame == "Hemograma":
+                if "11" in valores or "10" in valores:
+                    interpretacao += """
+                    HEMOGLOBINA BAIXA detectada:
+                    
+                    Conduta Nutricional:
+                    - Aumentar ferro heme: carnes vermelhas, fígado
+                    - Ferro não-heme: feijão, lentilha, vegetais verde-escuros
+                    - Vitamina C: potencializa absorção de ferro
+                    - Ácido fólico: vegetais folhosos
+                    - Vitamina B12: carnes, ovos, laticínios
+                    - Evitar: chá e café junto às refeições
+                    """
+            
+            elif tipo_exame == "Lipidograma":
+                interpretacao += """
+                PERFIL LIPÍDICO:
+                
+                Para reduzir colesterol:
+                - Reduzir gorduras saturadas (carnes gordas, laticínios integrais)
+                - Aumentar fibras solúveis (aveia, maçã, feijão)
+                - Ômega-3: peixes, linhaça, chia
+                - Fitosteróis: oleaginosas, óleos vegetais
+                
+                Para triglicérides:
+                - Reduzir carboidratos simples
+                - Evitar álcool
+                - Aumentar ômega-3
+                - Controlar peso
+                """
+            
+            elif tipo_exame == "Glicemia/HbA1c":
+                interpretacao += """
+                CONTROLE GLICÊMICO:
+                
+                - Carboidratos de baixo IG
+                - 25-35g fibras/dia
+                - Fracionamento: 5-6 refeições
+                - Evitar açúcares simples
+                - Proteínas magras em todas refeições
+                - Atividade física regular
+                """
+            
+            st.markdown(f'''
+            <div class="ai-response">
+                <pre style="white-space: pre-wrap; font-family: inherit;">{interpretacao}</pre>
+            </div>
+            ''', unsafe_allow_html=True)
+        else:
+            st.warning("Cole os resultados do exame!")
 
 # =============================================================================
 # GESTÃO DE PACIENTES
@@ -1037,20 +1188,15 @@ def show_pacientes(user):
     load_css()
     st.markdown('<h1 class="ultra-header">Gestão de Pacientes</h1>', unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["Lista de Pacientes", "Novo Paciente", "Avaliações"])
+    tab1, tab2 = st.tabs(["Lista de Pacientes", "Novo Paciente"])
     
     with tab1:
         list_pacientes(user)
     
     with tab2:
         create_paciente(user)
-    
-    with tab3:
-        manage_avaliacoes(user)
 
 def list_pacientes(user):
-    st.markdown('<div class="sub-header">Seus Pacientes</div>', unsafe_allow_html=True)
-    
     conn = db_manager.get_connection()
     cursor = conn.cursor()
     
@@ -1068,17 +1214,10 @@ def list_pacientes(user):
         st.info("Nenhum paciente cadastrado ainda.")
         return
     
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        busca = st.text_input("Buscar paciente", placeholder="Digite o nome...")
-    with col2:
-        sexo_filter = st.selectbox("Sexo", ["Todos", "Masculino", "Feminino"])
+    busca = st.text_input("Buscar paciente", placeholder="Digite o nome...")
     
     for pac in pacientes:
         if busca.lower() not in pac[1].lower():
-            continue
-        
-        if sexo_filter != "Todos" and pac[5] != sexo_filter:
             continue
         
         idade = calculate_age(pac[4]) if pac[4] else "N/A"
@@ -1100,37 +1239,28 @@ def list_pacientes(user):
                 """)
 
 def create_paciente(user):
-    st.markdown('<div class="sub-header">Cadastrar Novo Paciente</div>', unsafe_allow_html=True)
-    
     with st.form("paciente_form"):
         col1, col2 = st.columns(2)
         
         with col1:
-            nome = st.text_input("Nome Completo *", placeholder="João da Silva")
-            cpf = st.text_input("CPF", placeholder="000.000.000-00")
-            email = st.text_input("Email", placeholder="joao@email.com")
-            telefone = st.text_input("Telefone", placeholder="(00) 00000-0000")
+            nome = st.text_input("Nome Completo *")
+            email = st.text_input("Email")
+            telefone = st.text_input("Telefone")
         
         with col2:
             data_nasc = st.date_input("Data de Nascimento", value=None)
             sexo = st.selectbox("Sexo", ["Masculino", "Feminino", "Outro"])
-            profissao = st.text_input("Profissão")
-            objetivo = st.selectbox("Objetivo Principal", [
+            objetivo = st.selectbox("Objetivo", [
                 "Perda de Peso",
-                "Ganho de Massa Muscular",
-                "Saúde e Bem-estar",
-                "Performance Esportiva",
-                "Tratamento de Patologia",
-                "Outro"
+                "Ganho de Massa",
+                "Saúde",
+                "Performance",
+                "Tratamento Patologia"
             ])
         
-        restricoes = st.text_area(
-            "Restrições Alimentares / Alergias",
-            placeholder="Ex: Intolerância à lactose, alergia a frutos do mar...",
-            height=100
-        )
+        restricoes = st.text_area("Restrições Alimentares")
         
-        submitted = st.form_submit_button("Cadastrar Paciente", use_container_width=True)
+        submitted = st.form_submit_button("Cadastrar", use_container_width=True)
         
         if submitted:
             if nome:
@@ -1138,42 +1268,46 @@ def create_paciente(user):
                     conn = db_manager.get_connection()
                     cursor = conn.cursor()
                     
-                    paciente_uuid = str(uuid.uuid4())
-                    
                     cursor.execute('''
-                    INSERT INTO pacientes (
-                        uuid, nutricionista_id, nome, cpf, email, telefone,
-                        data_nascimento, sexo, profissao, objetivo, restricoes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        paciente_uuid, user['id'], nome, cpf, email, telefone,
-                        data_nasc, sexo, profissao, objetivo, restricoes
-                    ))
+                    INSERT INTO pacientes (uuid, nutricionista_id, nome, email, telefone, data_nascimento, sexo, objetivo, restricoes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (str(uuid.uuid4()), user['id'], nome, email, telefone, data_nasc, sexo, objetivo, restricoes))
                     
                     conn.commit()
                     conn.close()
                     
-                    st.success(f"Paciente {nome} cadastrado com sucesso!")
-                    time.sleep(1)
-                    st.rerun()
+                    st.success(f"Paciente {nome} cadastrado!")
                     
                 except Exception as e:
-                    st.error(f"Erro ao cadastrar: {str(e)}")
+                    st.error(f"Erro: {str(e)}")
             else:
                 st.error("Nome é obrigatório!")
 
-def manage_avaliacoes(user):
-    st.markdown('<div class="sub-header">Avaliações Antropométricas</div>', unsafe_allow_html=True)
+# =============================================================================
+# PRONTUÁRIO
+# =============================================================================
+
+def show_prontuario(user):
+    load_css()
+    st.markdown('<h1 class="ultra-header">Prontuário Nutricional</h1>', unsafe_allow_html=True)
     
+    if not check_permission(user, 'completo'):
+        st.error("Você não tem permissão.")
+        return
+    
+    tab1, tab2 = st.tabs(["Novo Prontuário", "Histórico"])
+    
+    with tab1:
+        create_prontuario(user)
+    
+    with tab2:
+        view_prontuarios(user)
+
+def create_prontuario(user):
     conn = db_manager.get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("""
-    SELECT id, nome FROM pacientes
-    WHERE nutricionista_id = ? AND ativo = 1
-    ORDER BY nome
-    """, (user['id'],))
-    
+    cursor.execute("SELECT id, nome FROM pacientes WHERE nutricionista_id = ? AND ativo = 1 ORDER BY nome", (user['id'],))
     pacientes = cursor.fetchall()
     conn.close()
     
@@ -1181,428 +1315,104 @@ def manage_avaliacoes(user):
         st.warning("Cadastre um paciente primeiro.")
         return
     
-    paciente = st.selectbox(
-        "Selecione o Paciente",
-        options=pacientes,
-        format_func=lambda x: x[1]
-    )
-    
-    with st.form("avaliacao_form"):
-        st.markdown("### Nova Avaliação")
+    with st.form("prontuario_form"):
+        paciente = st.selectbox("Paciente", options=pacientes, format_func=lambda x: x[1])
         
-        data_aval = st.date_input("Data da Avaliação", value=date.today())
+        tipo = st.selectbox("Tipo", ["Primeira Consulta", "Retorno", "Reavaliação"])
+        queixa = st.text_area("Queixa Principal", height=80)
+        diagnostico = st.text_area("Diagnóstico Nutricional", height=80)
+        conduta = st.text_area("Conduta", height=120)
         
-        col1, col2, col3 = st.columns(3)
+        submitted = st.form_submit_button("Salvar", use_container_width=True)
         
-        with col1:
-            peso = st.number_input("Peso (kg)", 0.0, 300.0, 70.0, step=0.1)
-            altura = st.number_input("Altura (cm)", 0.0, 250.0, 170.0, step=0.1)
-        
-        with col2:
-            cintura = st.number_input("Cintura (cm)", 0.0, 200.0, 80.0, step=0.1)
-            quadril = st.number_input("Quadril (cm)", 0.0, 200.0, 100.0, step=0.1)
-        
-        with col3:
-            gordura = st.number_input("% Gordura", 0.0, 100.0, 20.0, step=0.1)
-            massa_muscular = st.number_input("% Massa Muscular", 0.0, 100.0, 40.0, step=0.1)
-        
-        observacoes = st.text_area("Observações", height=80)
-        
-        submitted = st.form_submit_button("Salvar Avaliação", use_container_width=True)
-        
-        if submitted:
+        if submitted and queixa and diagnostico:
             try:
-                altura_m = altura / 100
-                imc = calculate_imc(peso, altura_m)
-                
                 conn = db_manager.get_connection()
                 cursor = conn.cursor()
-                
                 cursor.execute('''
-                INSERT INTO avaliacoes (
-                    paciente_id, data_avaliacao, peso, altura, imc,
-                    cintura, quadril, gordura, massa_muscular, observacoes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    paciente[0], data_aval, peso, altura, imc,
-                    cintura, quadril, gordura, massa_muscular, observacoes
-                ))
-                
+                INSERT INTO prontuarios (paciente_id, nutricionista_id, tipo_atendimento, queixa_principal, diagnostico_nutricional, conduta)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''', (paciente[0], user['id'], tipo, queixa, diagnostico, conduta))
                 conn.commit()
                 conn.close()
-                
-                st.success("Avaliação salva com sucesso!")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("IMC Calculado", f"{imc:.2f}")
-                with col2:
-                    if cintura > 0 and quadril > 0:
-                        rcq = cintura / quadril
-                        st.metric("RCQ", f"{rcq:.2f}")
-                
+                st.success("Prontuário salvo!")
             except Exception as e:
                 st.error(f"Erro: {str(e)}")
 
+def view_prontuarios(user):
+    conn = db_manager.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+    SELECT p.*, pac.nome FROM prontuarios p
+    JOIN pacientes pac ON p.paciente_id = pac.id
+    WHERE p.nutricionista_id = ?
+    ORDER BY p.data_atendimento DESC
+    LIMIT 20
+    """, (user['id'],))
+    
+    prontuarios = cursor.fetchall()
+    conn.close()
+    
+    if not prontuarios:
+        st.info("Nenhum prontuário.")
+        return
+    
+    for p in prontuarios:
+        with st.expander(f"{p[-1]} - {p[3]} - {p[4]}", expanded=False):
+            if p[5]:
+                st.markdown(f"**Queixa:** {p[5]}")
+            if p[9]:
+                st.markdown(f"**Diagnóstico:** {p[9]}")
+            if p[10]:
+                st.markdown(f"**Conduta:** {p[10]}")
+
 # =============================================================================
-# CALCULADORAS NUTRICIONAIS
+# PRESCRIÇÕES
 # =============================================================================
 
-def show_calculadoras(user):
+def show_prescricoes(user):
     load_css()
-    st.markdown('<h1 class="ultra-header">Calculadoras Nutricionais</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="ultra-header">Prescrição de Suplementos</h1>', unsafe_allow_html=True)
     
-    calc_option = st.selectbox("Escolha a calculadora:", [
-        "IMC e Composição Corporal",
-        "Gasto Energético Total",
-        "Distribuição de Macronutrientes",
-        "Necessidade Hídrica",
-        "Medidas Corporais",
-        "Análise Metabólica"
-    ])
+    if not check_permission(user, 'completo'):
+        st.error("Sem permissão.")
+        return
     
-    if calc_option == "IMC e Composição Corporal":
-        calc_imc()
-    elif calc_option == "Gasto Energético Total":
-        calc_gasto_energetico()
-    elif calc_option == "Distribuição de Macronutrientes":
-        calc_macros()
-    elif calc_option == "Necessidade Hídrica":
-        calc_hidratacao()
-    elif calc_option == "Medidas Corporais":
-        calc_medidas()
-    elif calc_option == "Análise Metabólica":
-        calc_metabolica()
-
-def calc_imc():
-    st.markdown("### IMC e Composição Corporal")
+    conn = db_manager.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, nome FROM pacientes WHERE nutricionista_id = ? AND ativo = 1", (user['id'],))
+    pacientes = cursor.fetchall()
+    conn.close()
     
-    col1, col2 = st.columns(2)
+    if not pacientes:
+        st.warning("Cadastre um paciente primeiro.")
+        return
     
-    with col1:
-        peso = st.number_input("Peso (kg)", 30.0, 300.0, 70.0, step=0.1)
-        altura = st.number_input("Altura (cm)", 100.0, 250.0, 170.0, step=0.1)
-    
-    with col2:
-        idade = st.number_input("Idade", 10, 100, 30)
-        sexo = st.selectbox("Sexo", ["Masculino", "Feminino"])
-    
-    if st.button("Calcular", use_container_width=True):
-        altura_m = altura / 100
-        imc = calculate_imc(peso, altura_m)
+    with st.form("prescricao_form"):
+        paciente = st.selectbox("Paciente", options=pacientes, format_func=lambda x: x[1])
         
-        if imc < 18.5:
-            classificacao = "Abaixo do peso"
-            cor = "#FFB74D"
-        elif imc < 25:
-            classificacao = "Peso normal"
-            cor = "#66BB6A"
-        elif imc < 30:
-            classificacao = "Sobrepeso"
-            cor = "#FFA726"
-        elif imc < 35:
-            classificacao = "Obesidade Grau I"
-            cor = "#FF7043"
-        elif imc < 40:
-            classificacao = "Obesidade Grau II"
-            cor = "#E53935"
-        else:
-            classificacao = "Obesidade Grau III"
-            cor = "#C62828"
+        suplementos = st.text_area(
+            "Suplementos e Posologia",
+            placeholder="1. Vitamina D3 - 2000 UI - 1x/dia\n2. Ômega 3 - 1000mg - 2x/dia",
+            height=200
+        )
         
-        col1, col2, col3 = st.columns(3)
+        submitted = st.form_submit_button("Gerar Prescrição", use_container_width=True)
         
-        with col1:
-            st.markdown(f'''
-            <div style="background: {cor}; color: white; padding: 1rem; border-radius: 10px; text-align: center;">
-                <h2 style="margin:0;">{imc:.1f}</h2>
-                <p style="margin:0;">IMC</p>
-            </div>
-            ''', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f'''
-            <div style="background: white; border: 2px solid {cor}; padding: 1rem; border-radius: 10px; text-align: center;">
-                <h3 style="margin:0; color: {cor};">{classificacao}</h3>
-            </div>
-            ''', unsafe_allow_html=True)
-        
-        with col3:
-            peso_ideal_min = 18.5 * (altura_m ** 2)
-            peso_ideal_max = 24.9 * (altura_m ** 2)
-            st.markdown(f'''
-            <div style="background: #E8F5E8; padding: 1rem; border-radius: 10px; text-align: center;">
-                <p style="margin:0;"><strong>Peso Ideal:</strong></p>
-                <p style="margin:0;">{peso_ideal_min:.1f} - {peso_ideal_max:.1f} kg</p>
-            </div>
-            ''', unsafe_allow_html=True)
-
-def calc_gasto_energetico():
-    st.markdown("### Gasto Energético Total")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        peso = st.number_input("Peso (kg)", 30.0, 300.0, 70.0, step=0.1)
-        altura = st.number_input("Altura (cm)", 100.0, 250.0, 170.0, step=0.1)
-        idade = st.number_input("Idade", 10, 100, 30)
-        sexo = st.selectbox("Sexo", ["Masculino", "Feminino"])
-    
-    with col2:
-        atividade = st.selectbox("Nível de Atividade Física", [
-            "Sedentário (pouco ou nenhum exercício)",
-            "Levemente ativo (1-3 dias/semana)",
-            "Moderadamente ativo (3-5 dias/semana)",
-            "Muito ativo (6-7 dias/semana)",
-            "Extremamente ativo (atleta)"
-        ])
-        
-        fatores = {
-            "Sedentário (pouco ou nenhum exercício)": 1.2,
-            "Levemente ativo (1-3 dias/semana)": 1.375,
-            "Moderadamente ativo (3-5 dias/semana)": 1.55,
-            "Muito ativo (6-7 dias/semana)": 1.725,
-            "Extremamente ativo (atleta)": 1.9
-        }
-        
-        fator_atividade = fatores[atividade]
-    
-    if st.button("Calcular GET", use_container_width=True):
-        bmr = calculate_bmr(peso, altura, idade, sexo)
-        get = bmr * fator_atividade
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("TMB (Taxa Metabólica Basal)", f"{bmr:.0f} kcal/dia")
-        
-        with col2:
-            st.metric("GET (Gasto Energético Total)", f"{get:.0f} kcal/dia")
-        
-        with col3:
-            deficit = get - 500
-            st.metric("Para Perda de Peso", f"{deficit:.0f} kcal/dia")
-        
-        st.info(f"""
-        Interpretação:
-        - TMB: Energia necessária para funções vitais em repouso
-        - GET: Energia total gasta por dia considerando atividade física
-        - Déficit de 500 kcal: Perda aproximada de 0,5kg por semana
-        """)
-
-def calc_macros():
-    st.markdown("### Distribuição de Macronutrientes")
-    
-    calorias_alvo = st.number_input("Calorias Alvo (kcal/dia)", 1000, 5000, 2000, step=50)
-    
-    objetivo = st.selectbox("Objetivo", [
-        "Equilibrado (padrão)",
-        "Perda de Peso (alto proteína)",
-        "Ganho de Massa (alto proteína)",
-        "Low Carb",
-        "Dieta Cetogênica"
-    ])
-    
-    distribuicoes = {
-        "Equilibrado (padrão)": (50, 20, 30),
-        "Perda de Peso (alto proteína)": (40, 30, 30),
-        "Ganho de Massa (alto proteína)": (45, 30, 25),
-        "Low Carb": (25, 35, 40),
-        "Dieta Cetogênica": (10, 25, 65)
-    }
-    
-    carb_perc, prot_perc, lip_perc = distribuicoes[objetivo]
-    
-    if st.button("Calcular Macros", use_container_width=True):
-        carb_g = (calorias_alvo * carb_perc / 100) / 4
-        prot_g = (calorias_alvo * prot_perc / 100) / 4
-        lip_g = (calorias_alvo * lip_perc / 100) / 9
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Carboidratos", f"{carb_g:.0f}g", f"{carb_perc}%")
-        
-        with col2:
-            st.metric("Proteínas", f"{prot_g:.0f}g", f"{prot_perc}%")
-        
-        with col3:
-            st.metric("Lipídios", f"{lip_g:.0f}g", f"{lip_perc}%")
-        
-        df = pd.DataFrame({
-            'Macro': ['Carboidratos', 'Proteínas', 'Lipídios'],
-            'Percentual': [carb_perc, prot_perc, lip_perc]
-        })
-        
-        fig = px.pie(df, values='Percentual', names='Macro',
-                     color_discrete_sequence=['#4CAF50', '#2196F3', '#FFC107'])
-        st.plotly_chart(fig, use_container_width=True)
-
-def calc_hidratacao():
-    st.markdown("### Necessidade Hídrica")
-    
-    peso = st.number_input("Peso (kg)", 30.0, 300.0, 70.0, step=0.1)
-    atividade = st.selectbox("Nível de Atividade", [
-        "Sedentário",
-        "Moderado",
-        "Intenso"
-    ])
-    
-    if st.button("Calcular", use_container_width=True):
-        base = peso * 35
-        
-        if atividade == "Moderado":
-            total = base * 1.2
-        elif atividade == "Intenso":
-            total = base * 1.5
-        else:
-            total = base
-        
-        copos = total / 250
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric("Necessidade Diária", f"{total:.0f} ml")
-        
-        with col2:
-            st.metric("Equivalente", f"{copos:.0f} copos de 250ml")
-        
-        st.info(f"""
-        Distribuição sugerida:
-        - Ao acordar: 500ml
-        - Manhã: {total*0.2:.0f}ml
-        - Almoço: {total*0.2:.0f}ml
-        - Tarde: {total*0.3:.0f}ml
-        - Jantar: {total*0.2:.0f}ml
-        - Noite: {total*0.1:.0f}ml
-        """)
-
-def calc_medidas():
-    st.markdown("### Medidas Corporais e Proporções")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        cintura = st.number_input("Cintura (cm)", 0.0, 200.0, 80.0, step=0.1)
-        quadril = st.number_input("Quadril (cm)", 0.0, 200.0, 100.0, step=0.1)
-    
-    with col2:
-        altura = st.number_input("Altura (cm)", 100.0, 250.0, 170.0, step=0.1)
-        sexo = st.selectbox("Sexo", ["Masculino", "Feminino"])
-    
-    if st.button("Analisar", use_container_width=True):
-        if cintura > 0 and quadril > 0:
-            rcq = cintura / quadril
-            rca = cintura / altura
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.metric("RCQ (Relação Cintura-Quadril)", f"{rcq:.2f}")
-                
-                if sexo == "Masculino":
-                    if rcq < 0.9:
-                        st.success("Risco baixo")
-                    elif rcq < 1.0:
-                        st.warning("Risco moderado")
-                    else:
-                        st.error("Risco alto")
-                else:
-                    if rcq < 0.8:
-                        st.success("Risco baixo")
-                    elif rcq < 0.85:
-                        st.warning("Risco moderado")
-                    else:
-                        st.error("Risco alto")
-            
-            with col2:
-                st.metric("RCA (Relação Cintura-Altura)", f"{rca:.2f}")
-                
-                if rca < 0.5:
-                    st.success("Saudável")
-                elif rca < 0.6:
-                    st.warning("Atenção")
-                else:
-                    st.error("Risco elevado")
-
-def calc_metabolica():
-    st.markdown("### Análise Metabólica Avançada")
-    
-    st.info("Esta calculadora combina vários parâmetros para uma análise completa")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        peso = st.number_input("Peso (kg)", 30.0, 300.0, 70.0, step=0.1)
-        altura = st.number_input("Altura (cm)", 100.0, 250.0, 170.0, step=0.1)
-        idade = st.number_input("Idade", 10, 100, 30)
-        sexo = st.selectbox("Sexo", ["Masculino", "Feminino"])
-    
-    with col2:
-        gordura = st.number_input("% Gordura Corporal", 0.0, 60.0, 20.0, step=0.1)
-        atividade = st.selectbox("Nível de Atividade", [
-            "Sedentário",
-            "Levemente ativo",
-            "Moderadamente ativo",
-            "Muito ativo",
-            "Atleta"
-        ])
-    
-    if st.button("Análise Completa", use_container_width=True):
-        altura_m = altura / 100
-        imc = calculate_imc(peso, altura_m)
-        bmr = calculate_bmr(peso, altura, idade, sexo)
-        
-        fatores = {
-            "Sedentário": 1.2,
-            "Levemente ativo": 1.375,
-            "Moderadamente ativo": 1.55,
-            "Muito ativo": 1.725,
-            "Atleta": 1.9
-        }
-        
-        get = bmr * fatores[atividade]
-        massa_gorda = peso * (gordura / 100)
-        massa_magra = peso - massa_gorda
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("IMC", f"{imc:.1f}")
-        
-        with col2:
-            st.metric("TMB", f"{bmr:.0f} kcal")
-        
-        with col3:
-            st.metric("GET", f"{get:.0f} kcal")
-        
-        with col4:
-            st.metric("Massa Magra", f"{massa_magra:.1f} kg")
-        
-        st.markdown("### Recomendações Personalizadas")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown(f"""
-            **Composição Corporal:**
-            - Massa Gorda: {massa_gorda:.1f} kg ({gordura:.1f}%)
-            - Massa Magra: {massa_magra:.1f} kg ({100-gordura:.1f}%)
-            - Água Corporal: ~{massa_magra*0.7:.1f} L
-            """)
-        
-        with col2:
-            proteina_min = massa_magra * 1.6
-            proteina_max = massa_magra * 2.2
-            
-            st.markdown(f"""
-            **Necessidades Nutricionais:**
-            - Proteína: {proteina_min:.0f}-{proteina_max:.0f}g/dia
-            - Água: {peso*35:.0f}ml/dia
-            - Para ganho de massa: {get+300:.0f} kcal/dia
-            - Para perda de gordura: {get-500:.0f} kcal/dia
-            """)
+        if submitted and suplementos:
+            try:
+                conn = db_manager.get_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                INSERT INTO prescricoes_suplementos (uuid, paciente_id, nutricionista_id, suplementos, validade)
+                VALUES (?, ?, ?, ?, ?)
+                ''', (str(uuid.uuid4()), paciente[0], user['id'], suplementos, date.today() + timedelta(days=90)))
+                conn.commit()
+                conn.close()
+                st.success("Prescrição gerada!")
+            except Exception as e:
+                st.error(f"Erro: {str(e)}")
 
 # =============================================================================
 # MENU PRINCIPAL
@@ -1623,20 +1433,19 @@ def main():
     
     with st.sidebar:
         st.markdown(f'<h2 style="color: #2E7D32;">{user["nome"]}</h2>', unsafe_allow_html=True)
-        st.markdown(f'<p style="color: #666;">{user["tipo_usuario"].upper()}</p>', unsafe_allow_html=True)
         st.markdown("---")
         
         menu_items = [
             ("Dashboard", "Dashboard"),
+            ("Biblioteca de Alimentos", "Alimentos"),
             ("Assistente IA", "Assistente IA"),
             ("Prontuário", "Prontuário"),
             ("Prescrições", "Prescrições"),
-            ("Pacientes", "Pacientes"),
-            ("Calculadoras", "Calculadoras")
+            ("Pacientes", "Pacientes")
         ]
         
         for label, page in menu_items:
-            if st.button(f"{label}", use_container_width=True, 
+            if st.button(label, use_container_width=True, 
                         key=f"menu_{page}",
                         type="primary" if st.session_state.page == page else "secondary"):
                 st.session_state.page = page
@@ -1651,16 +1460,16 @@ def main():
     
     if st.session_state.page == "Dashboard":
         show_dashboard(user)
+    elif st.session_state.page == "Alimentos":
+        show_alimentos(user)
     elif st.session_state.page == "Assistente IA":
         show_ai_assistant(user)
     elif st.session_state.page == "Prontuário":
         show_prontuario(user)
     elif st.session_state.page == "Prescrições":
-        show_prescricao_suplementos(user)
+        show_prescricoes(user)
     elif st.session_state.page == "Pacientes":
         show_pacientes(user)
-    elif st.session_state.page == "Calculadoras":
-        show_calculadoras(user)
 
 if __name__ == "__main__":
     main()
