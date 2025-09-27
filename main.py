@@ -38,14 +38,21 @@ from email.mime.base import MIMEBase
 from email import encoders
 import secrets
 import io
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib import colors
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import base64
 import math
+
+# Imports opcionais - PDF
+PDF_AVAILABLE = False
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    PDF_AVAILABLE = True
+except ImportError:
+    pass  # PDF não disponível, sistema continuará funcionando
 
 # ============================================================================
 # CONFIGURAÇÃO
@@ -57,6 +64,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Avisos sobre bibliotecas opcionais
+if not PDF_AVAILABLE:
+    st.sidebar.warning("⚠️ PDFs desabilitados. Instale: pip install reportlab")
 
 # Configurações de Email (CONFIGURE COM SEUS DADOS)
 EMAIL_CONFIG = {
