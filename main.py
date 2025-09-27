@@ -2335,7 +2335,7 @@ def show_settings():
         """)
     
     with tab3:
-        st.markdown("### 🔐 Segurança</h3>
+        st.markdown("### 🔐 Segurança")
         
         with st.form("change_password_form"):
             st.markdown("#### Alterar Senha")
