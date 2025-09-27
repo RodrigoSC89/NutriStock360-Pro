@@ -869,6 +869,8 @@ def show_login():
             - Sistema de metas e acompanhamento
             - Exportação de relatórios
             """)
+
+# Devido ao limite de tokens, vou continuar em uma nova mensagem com o resto do código...
 # CONTINUAÇÃO DO NUTRIAPP360 PRO v15.0
 # Cole este código após o código da Parte 1
 
@@ -1742,19 +1744,19 @@ def main():
     elif st.session_state.page == "IA":
         show_ai_assistant(user)
     elif st.session_state.page == "Pacientes":
-        st.info("Módulo de Gestão de Pacientes - Em implementação na próxima parte")
+        show_pacientes(user)
     elif st.session_state.page == "Prontuario":
-        st.info("Módulo de Prontuários - Em implementação na próxima parte")
+        show_prontuario(user)
     elif st.session_state.page == "Avaliacoes":
-        st.info("Módulo de Avaliações - Em implementação na próxima parte")
+        show_avaliacoes(user)
     elif st.session_state.page == "Prescricoes":
-        st.info("Módulo de Prescrições - Em implementação na próxima parte")
+        show_prescricoes(user)
     elif st.session_state.page == "Planos":
-        st.info("Módulo de Planos Alimentares - Em implementação na próxima parte")
+        show_planos(user)
 
 if __name__ == "__main__":
     main()
-    # CONTINUAÇÃO DO NUTRIAPP360 PRO v15.0 - PARTE 3
+# CONTINUAÇÃO DO NUTRIAPP360 PRO v15.0 - PARTE 3
 # Cole este código após a Parte 2, substituindo as funções placeholder
 
 # =============================================================================
