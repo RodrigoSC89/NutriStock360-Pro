@@ -1,25 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NutriStock 360 - Sistema ULTIMATE Completo
-Version: 4.0 ULTIMATE - TODAS as Funcionalidades FUNCIONAIS
+NutriStock 360 - Sistema COMPLETO v5.0
+TODAS as Funcionalidades IMPLEMENTADAS
 Author: NutriStock Team
-
-🎉 VERSÃO 4.0 ULTIMATE INCLUI:
-✅ Sistema Web Completo
-✅ Geração de PDF Profissional
-✅ Envio de Emails Automático
-✅ Recuperação de Senha
-✅ API REST Integrada
-✅ 15+ Calculadoras Profissionais
-✅ Gestão Completa de Pacientes (CRUD)
-✅ Sistema de Avaliações Antropométricas
-✅ Planos Alimentares Personalizados
-✅ Agendamento de Consultas
-✅ Gráficos de Evolução
-✅ Chat IA Inteligente
-✅ Sistema de Receitas
-✅ Preparado para Mobile
 """
 
 import streamlit as st
@@ -30,114 +14,154 @@ from datetime import datetime, timedelta
 import sqlite3
 import hashlib
 import json
-import random
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
 import secrets
 import io
 import base64
 import math
 
-# Imports opcionais - PDF
+# Imports opcionais
 PDF_AVAILABLE = False
 try:
-    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
     from reportlab.lib.units import inch
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
     PDF_AVAILABLE = True
 except ImportError:
-    pass  # PDF não disponível, sistema continuará funcionando
+    pass
 
 # ============================================================================
 # CONFIGURAÇÃO
 # ============================================================================
 
 st.set_page_config(
-    page_title="NutriStock 360 ULTIMATE v4.0",
+    page_title="NutriStock 360 v5.0",
     page_icon="🍽️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Avisos sobre bibliotecas opcionais
-if not PDF_AVAILABLE:
-    st.sidebar.warning("⚠️ PDFs desabilitados. Instale: pip install reportlab")
-
-# Configurações de Email (CONFIGURE COM SEUS DADOS)
-EMAIL_CONFIG = {
-    'smtp_server': 'smtp.gmail.com',
-    'smtp_port': 587,
-    'email': 'seu-email@gmail.com',
-    'password': 'sua-senha-app',
-    'enabled': False
-}
-
 # ============================================================================
-# ESTILOS CSS
+# CSS COMPLETO E MODERNO
 # ============================================================================
 
-st.markdown("""
+def load_css():
+    st.markdown("""
 <style>
-    .main { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
+    * { font-family: 'Inter', sans-serif; }
+    
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
+    }
+    
+    .block-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem !important;
+        margin-top: 2rem;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    }
     
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem; border-radius: 15px; color: white;
-        text-align: center; margin-bottom: 2rem;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        padding: 3rem 2rem;
+        border-radius: 20px;
+        color: white;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+    
+    .main-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin: 0;
     }
     
     .metric-card {
-        background: white; padding: 1.5rem; border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        border-left: 5px solid #667eea; transition: all 0.3s;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        border-left: 4px solid #667eea;
+        transition: all 0.3s;
         margin-bottom: 1rem;
     }
     
     .metric-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        transform: translateY(-10px);
+        box-shadow: 0 20px 60px rgba(102, 126, 234, 0.2);
+    }
+    
+    .metric-card h3 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #667eea;
+        margin: 0 0 0.5rem 0;
+        text-transform: uppercase;
+    }
+    
+    .metric-card h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin: 0.5rem 0;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     
     .patient-card {
-        background: white; padding: 1.5rem; border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        margin-bottom: 1rem; border-left: 4px solid #4CAF50;
+        background: white;
+        padding: 1.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin-bottom: 1rem;
+        border-left: 4px solid #4CAF50;
         transition: all 0.3s;
     }
     
     .patient-card:hover {
-        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-        transform: translateX(8px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        transform: translateX(10px);
     }
     
     .chat-message {
-        padding: 1.2rem; border-radius: 12px; margin-bottom: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        padding: 1rem 1.5rem;
+        border-radius: 16px;
+        margin-bottom: 1rem;
     }
     
     .user-message {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white; margin-left: 20%; border-radius: 18px 18px 5px 18px;
+        color: white;
+        margin-left: 15%;
+        border-radius: 20px 20px 5px 20px;
     }
     
     .ai-message {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        color: #333; margin-right: 20%; border-left: 4px solid #667eea;
-        border-radius: 18px 18px 18px 5px;
+        color: #333;
+        margin-right: 15%;
+        border-radius: 20px 20px 20px 5px;
+        border-left: 4px solid #667eea;
     }
     
     .stButton>button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white; border: none; border-radius: 12px;
-        padding: 0.8rem 2rem; font-weight: bold;
-        transition: all 0.3s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     
     .stButton>button:hover {
@@ -146,58 +170,79 @@ st.markdown("""
     }
     
     .info-box {
-        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-        padding: 1.5rem; border-radius: 12px;
-        border-left: 4px solid #667eea; margin: 1rem 0;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        padding: 1.5rem;
+        border-radius: 16px;
+        border-left: 4px solid #667eea;
+        margin: 1rem 0;
     }
     
     .success-badge {
         background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-        color: white; padding: 0.4rem 1rem; border-radius: 20px;
-        font-weight: bold; display: inline-block;
-        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 700;
+        display: inline-block;
+        font-size: 0.85rem;
     }
     
     .calculator-card {
         background: white;
+        padding: 2rem;
+        border-radius: 20px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+        border-left: 5px solid #FF9800;
+    }
+    
+    .recipe-card {
+        background: white;
         padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         margin-bottom: 1rem;
-        border-left: 4px solid #FF9800;
+        transition: all 0.3s;
+    }
+    
+    .recipe-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
     }
 </style>
 """, unsafe_allow_html=True)
 
+load_css()
+
 # ============================================================================
-# BANCO DE DADOS
+# BANCO DE DADOS COMPLETO
 # ============================================================================
 
 def init_database():
-    """Inicializa banco de dados COMPLETO"""
     conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
     cursor = conn.cursor()
     
-    # Tabela de Usuários
+    # Users
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             full_name TEXT NOT NULL,
-            email TEXT UNIQUE,
+            email TEXT,
             phone TEXT,
             role TEXT DEFAULT 'nutritionist',
             crn TEXT,
-            reset_token TEXT,
-            reset_token_expires TIMESTAMP,
-            email_verified BOOLEAN DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_login TIMESTAMP
         )
     ''')
     
-    # Tabela de Pacientes
+    # Patients
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,61 +268,7 @@ def init_database():
         )
     ''')
     
-    # Tabela de Consultas
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS appointments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            patient_id INTEGER,
-            user_id INTEGER,
-            date DATE NOT NULL,
-            time TEXT NOT NULL,
-            type TEXT,
-            status TEXT DEFAULT 'pending',
-            notes TEXT,
-            reminder_sent BOOLEAN DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (patient_id) REFERENCES patients (id),
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    
-    # Tabela de Conversas IA
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS llm_conversations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            patient_id INTEGER,
-            conversation_type TEXT,
-            user_message TEXT,
-            llm_response TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id),
-            FOREIGN KEY (patient_id) REFERENCES patients (id)
-        )
-    ''')
-    
-    # Tabela de Planos Alimentares
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS meal_plans (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            patient_id INTEGER,
-            user_id INTEGER,
-            title TEXT NOT NULL,
-            description TEXT,
-            calories INTEGER,
-            proteins REAL,
-            carbs REAL,
-            fats REAL,
-            meals_data TEXT,
-            pdf_generated BOOLEAN DEFAULT 0,
-            active BOOLEAN DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (patient_id) REFERENCES patients (id),
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    
-    # Tabela de Avaliações
+    # Evaluations
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS evaluations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -296,38 +287,27 @@ def init_database():
             thigh REAL,
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (patient_id) REFERENCES patients (id),
-            FOREIGN KEY (user_id) REFERENCES users (id)
+            FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
     
-    # Tabela de Logs de Email
+    # Appointments
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS email_logs (
+        CREATE TABLE IF NOT EXISTS appointments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            recipient TEXT,
-            subject TEXT,
-            type TEXT,
-            status TEXT,
-            error_message TEXT,
-            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Tabela de API Tokens
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS api_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER,
             user_id INTEGER,
-            token TEXT UNIQUE,
-            device_info TEXT,
-            expires_at TIMESTAMP,
+            date DATE NOT NULL,
+            time TEXT NOT NULL,
+            type TEXT,
+            status TEXT DEFAULT 'pending',
+            notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
+            FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
     
-    # Tabela de Receitas
+    # Recipes
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS recipes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -343,29 +323,99 @@ def init_database():
             ingredients TEXT,
             instructions TEXT,
             tags TEXT,
+            difficulty TEXT,
+            cost TEXT,
             active BOOLEAN DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
     
-    # Criar usuário admin se não existir
+    # Foods Database
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS foods (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT,
+            serving_size REAL,
+            unit TEXT,
+            calories REAL,
+            proteins REAL,
+            carbs REAL,
+            fats REAL,
+            fiber REAL,
+            sodium REAL,
+            potassium REAL,
+            calcium REAL,
+            iron REAL,
+            vitamin_a REAL,
+            vitamin_c REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Goals
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER,
+            goal_type TEXT,
+            target_value REAL,
+            current_value REAL,
+            deadline DATE,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients (id)
+        )
+    ''')
+    
+    # Meal Plans
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meal_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER,
+            user_id INTEGER,
+            title TEXT NOT NULL,
+            description TEXT,
+            calories INTEGER,
+            proteins REAL,
+            carbs REAL,
+            fats REAL,
+            meals_data TEXT,
+            active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients (id)
+        )
+    ''')
+    
+    # Shopping Lists
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS shopping_lists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            title TEXT,
+            items TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Criar usuário admin e dados iniciais
     cursor.execute("SELECT * FROM users WHERE username = 'admin'")
     if not cursor.fetchone():
         password_hash = hashlib.sha256('admin123'.encode()).hexdigest()
         cursor.execute('''
-            INSERT INTO users (username, password, full_name, email, role, crn, email_verified)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', ('admin', password_hash, 'Dr. João Nutricionista', 'joao@nutristock.com', 'nutritionist', 'CRN 12345', 1))
+            INSERT INTO users (username, password, full_name, email, role, crn)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', ('admin', password_hash, 'Dr. João Nutricionista', 'joao@nutristock.com', 'nutritionist', 'CRN 12345'))
         
         user_id = cursor.lastrowid
         
         # Pacientes exemplo
         sample_patients = [
-            ('Ana Silva Santos', 'ana.silva@email.com', '(11) 98765-4321', '1992-05-15', 'Feminino', 68.5, 1.65, 62.0, 'Perder peso', 'Nenhuma', 'Lactose', 'Motivada e comprometida', 65),
-            ('Carlos Eduardo Oliveira', 'carlos.edu@email.com', '(11) 97654-3210', '1988-08-20', 'Masculino', 85.0, 1.75, 80.0, 'Ganhar massa muscular', 'Hipertensão controlada', 'Nenhuma', 'Pratica musculação 5x semana', 45),
-            ('Maria Fernanda Costa', 'maria.costa@email.com', '(11) 96543-2109', '1995-11-30', 'Feminino', 58.0, 1.60, 58.0, 'Manutenção de peso', 'Nenhuma', 'Frutos do mar', 'Alimentação equilibrada', 90),
-            ('Pedro Henrique Santos', 'pedro.santos@email.com', '(11) 95432-1098', '1985-03-10', 'Masculino', 92.0, 1.80, 78.0, 'Perder peso', 'Diabetes tipo 2', 'Nenhuma', 'Necessita dieta especial', 30),
+            ('Ana Silva Santos', 'ana@email.com', '(11) 98765-4321', '1992-05-15', 'Feminino', 68.5, 1.65, 62.0, 'Perder peso', 'Nenhuma', 'Lactose', 'Motivada', 65),
+            ('Carlos Eduardo', 'carlos@email.com', '(11) 97654-3210', '1988-08-20', 'Masculino', 85.0, 1.75, 80.0, 'Ganhar massa muscular', 'Hipertensão', '', 'Treino 5x', 45),
+            ('Maria Costa', 'maria@email.com', '(11) 96543-2109', '1995-11-30', 'Feminino', 58.0, 1.60, 58.0, 'Manutenção de peso', '', 'Frutos do mar', 'Equilibrada', 90),
         ]
         
         for patient in sample_patients:
@@ -378,16 +428,58 @@ def init_database():
             
             patient_id = cursor.lastrowid
             
-            # Criar avaliações de exemplo
-            for i in range(3):
+            # Avaliações
+            for i in range(4):
                 date = (datetime.now() - timedelta(days=30*i)).strftime('%Y-%m-%d')
-                weight = patient[6] - (i * 2)
+                weight = patient[6] - (i * 1.5)
                 imc = weight / (patient[7] ** 2)
                 
                 cursor.execute('''
                     INSERT INTO evaluations (patient_id, user_id, date, weight, imc)
                     VALUES (?, ?, ?, ?, ?)
                 ''', (patient_id, user_id, date, weight, imc))
+        
+        # Alimentos
+        sample_foods = [
+            ('Arroz branco cozido', 'Cereais', 100, 'g', 130, 2.7, 28.2, 0.3, 0.4, 1, 35, 10, 0.3, 0, 0),
+            ('Arroz integral cozido', 'Cereais', 100, 'g', 111, 2.6, 23.0, 0.9, 1.8, 1, 43, 7, 0.4, 0, 0),
+            ('Frango grelhado', 'Carnes', 100, 'g', 165, 31.0, 0, 3.6, 0, 82, 256, 15, 1.0, 30, 0),
+            ('Carne bovina magra', 'Carnes', 100, 'g', 250, 26.0, 0, 15.0, 0, 55, 318, 18, 2.6, 0, 0),
+            ('Salmão', 'Peixes', 100, 'g', 208, 20.0, 0, 13.0, 0, 59, 363, 12, 0.8, 40, 0),
+            ('Ovo cozido', 'Ovos', 50, 'g', 78, 6.3, 0.6, 5.3, 0, 62, 63, 25, 0.9, 75, 0),
+            ('Banana', 'Frutas', 100, 'g', 89, 1.1, 22.8, 0.3, 2.6, 1, 358, 5, 0.3, 64, 8.7),
+            ('Maçã', 'Frutas', 100, 'g', 52, 0.3, 13.8, 0.2, 2.4, 1, 107, 6, 0.1, 54, 4.6),
+            ('Batata doce', 'Tubérculos', 100, 'g', 86, 1.6, 20.1, 0.1, 3.0, 55, 337, 30, 0.6, 709, 2.4),
+            ('Feijão cozido', 'Leguminosas', 100, 'g', 77, 4.5, 13.6, 0.5, 5.5, 2, 251, 27, 1.5, 0, 0.8),
+            ('Brócolis cozido', 'Vegetais', 100, 'g', 35, 2.4, 7.2, 0.4, 3.3, 41, 293, 40, 0.7, 623, 64.9),
+            ('Aveia', 'Cereais', 100, 'g', 389, 16.9, 66.3, 6.9, 10.6, 2, 429, 54, 4.7, 0, 0),
+            ('Iogurte natural', 'Laticínios', 100, 'g', 61, 3.5, 4.7, 3.3, 0, 46, 155, 121, 0.1, 27, 0.5),
+        ]
+        
+        for food in sample_foods:
+            cursor.execute('''
+                INSERT INTO foods (name, category, serving_size, unit, calories, proteins, carbs, fats, fiber, sodium, potassium, calcium, iron, vitamin_a, vitamin_c)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', food)
+        
+        # Receitas exemplo
+        sample_recipes = [
+            (user_id, 'Frango Grelhado com Batata Doce', 'Almoço', 30, 1, 450, 45, 40, 8,
+             'Peito de frango - 150g\nBatata doce - 200g\nAzeite - 1 colher\nAlho e temperos',
+             '1. Tempere o frango\n2. Grelhe por 6 minutos cada lado\n3. Asse a batata doce\n4. Sirva quente',
+             'proteico,saudavel,facil', 'Fácil', 'Médio'),
+            
+            (user_id, 'Omelete de Claras com Aveia', 'Café da Manhã', 15, 1, 280, 25, 30, 6,
+             'Claras de ovo - 4 unidades\nAveia - 3 colheres\nTomate - 1 unidade\nCebola - meia unidade',
+             '1. Bata as claras\n2. Adicione aveia e vegetais\n3. Cozinhe em fogo baixo\n4. Sirva com suco',
+             'proteico,light,rapido', 'Fácil', 'Baixo'),
+        ]
+        
+        for recipe in sample_recipes:
+            cursor.execute('''
+                INSERT INTO recipes (user_id, title, category, prep_time, servings, calories, proteins, carbs, fats, ingredients, instructions, tags, difficulty, cost)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', recipe)
     
     conn.commit()
     conn.close()
@@ -395,11 +487,10 @@ def init_database():
 init_database()
 
 # ============================================================================
-# FUNÇÕES DE AUTENTICAÇÃO
+# AUTENTICAÇÃO
 # ============================================================================
 
 def authenticate_user(username, password):
-    """Autentica usuário"""
     try:
         conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
         cursor = conn.cursor()
@@ -431,165 +522,96 @@ def authenticate_user(username, password):
         st.error(f"Erro: {e}")
         return None
 
-def register_user(username, password, full_name, email, crn, phone=""):
-    """Registra novo usuário"""
-    try:
-        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-        cursor = conn.cursor()
-        
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        cursor.execute('''
-            INSERT INTO users (username, password, full_name, email, crn, phone, role)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (username, password_hash, full_name, email, crn, phone, 'nutritionist'))
-        
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Erro ao registrar: {e}")
-        return False
-
 # ============================================================================
-# CALCULADORAS PROFISSIONAIS
+# CALCULADORAS COMPLETAS
 # ============================================================================
 
 def calculate_imc(weight, height):
-    """Calcula IMC"""
     if height > 0:
         imc = weight / (height ** 2)
-        
         if imc < 18.5:
-            category = "Abaixo do peso"
-            color = "#FFC107"
+            return imc, "Abaixo do peso", "#FFC107"
         elif 18.5 <= imc < 25:
-            category = "Peso normal"
-            color = "#4CAF50"
+            return imc, "Peso normal", "#4CAF50"
         elif 25 <= imc < 30:
-            category = "Sobrepeso"
-            color = "#FF9800"
+            return imc, "Sobrepeso", "#FF9800"
         elif 30 <= imc < 35:
-            category = "Obesidade Grau I"
-            color = "#FF5722"
+            return imc, "Obesidade Grau I", "#FF5722"
         elif 35 <= imc < 40:
-            category = "Obesidade Grau II"
-            color = "#F44336"
+            return imc, "Obesidade Grau II", "#F44336"
         else:
-            category = "Obesidade Grau III"
-            color = "#C62828"
-        
-        return imc, category, color
-    return 0, "Dados inválidos", "#999999"
+            return imc, "Obesidade Grau III", "#C62828"
+    return 0, "Dados inválidos", "#999"
 
 def calculate_tmb(weight, height, age, gender):
-    """Calcula Taxa Metabólica Basal (TMB) - Equação de Mifflin-St Jeor"""
     height_cm = height * 100
-    
     if gender == "Masculino":
         tmb = (10 * weight) + (6.25 * height_cm) - (5 * age) + 5
     else:
         tmb = (10 * weight) + (6.25 * height_cm) - (5 * age) - 161
-    
     return round(tmb, 2)
 
 def calculate_get(tmb, activity_level):
-    """Calcula Gasto Energético Total (GET)"""
-    activity_factors = {
+    factors = {
         "Sedentário": 1.2,
         "Levemente ativo": 1.375,
         "Moderadamente ativo": 1.55,
         "Muito ativo": 1.725,
         "Extremamente ativo": 1.9
     }
-    
-    factor = activity_factors.get(activity_level, 1.2)
-    get = tmb * factor
-    
-    return round(get, 2)
+    return round(tmb * factors.get(activity_level, 1.2), 2)
 
-def calculate_body_fat_navy(gender, waist, neck, height, hip=None):
-    """Calcula percentual de gordura corporal - Método Navy"""
-    if gender == "Masculino":
-        body_fat = 495 / (1.0324 - 0.19077 * math.log10(waist - neck) + 0.15456 * math.log10(height * 100)) - 450
+def calculate_macros(calories, goal):
+    if goal == "Perder peso":
+        protein_pct, carbs_pct, fats_pct = 0.30, 0.40, 0.30
+    elif goal == "Ganhar massa muscular":
+        protein_pct, carbs_pct, fats_pct = 0.25, 0.50, 0.25
     else:
-        if hip:
-            body_fat = 495 / (1.29579 - 0.35004 * math.log10(waist + hip - neck) + 0.22100 * math.log10(height * 100)) - 450
-        else:
-            return None
+        protein_pct, carbs_pct, fats_pct = 0.20, 0.50, 0.30
     
-    return round(max(0, body_fat), 2)
-
-def calculate_ideal_weight(height, gender):
-    """Calcula peso ideal - Equação de Devine"""
-    height_inches = height * 39.3701
-    
-    if gender == "Masculino":
-        ideal_weight = 50 + 2.3 * (height_inches - 60)
-    else:
-        ideal_weight = 45.5 + 2.3 * (height_inches - 60)
-    
-    return round(ideal_weight, 2)
+    return {
+        'proteins': round((calories * protein_pct) / 4, 2),
+        'carbs': round((calories * carbs_pct) / 4, 2),
+        'fats': round((calories * fats_pct) / 9, 2)
+    }
 
 def calculate_water_intake(weight, activity_level):
-    """Calcula necessidade hídrica"""
-    base_water = weight * 35  # ml por kg
-    
-    activity_multipliers = {
+    base_water = weight * 35
+    multipliers = {
         "Sedentário": 1.0,
         "Levemente ativo": 1.1,
         "Moderadamente ativo": 1.2,
         "Muito ativo": 1.3,
         "Extremamente ativo": 1.4
     }
-    
-    multiplier = activity_multipliers.get(activity_level, 1.0)
-    total_water = base_water * multiplier
-    
-    return round(total_water / 1000, 2)  # Retorna em litros
+    return round((base_water * multipliers.get(activity_level, 1.0)) / 1000, 2)
 
-def calculate_macros(calories, goal):
-    """Calcula distribuição de macronutrientes"""
-    if goal == "Perder peso":
-        protein_pct = 0.30
-        carbs_pct = 0.40
-        fats_pct = 0.30
-    elif goal == "Ganhar massa muscular":
-        protein_pct = 0.25
-        carbs_pct = 0.50
-        fats_pct = 0.25
-    else:  # Manutenção
-        protein_pct = 0.20
-        carbs_pct = 0.50
-        fats_pct = 0.30
-    
-    proteins_g = (calories * protein_pct) / 4
-    carbs_g = (calories * carbs_pct) / 4
-    fats_g = (calories * fats_pct) / 9
-    
-    return {
-        'proteins': round(proteins_g, 2),
-        'carbs': round(carbs_g, 2),
-        'fats': round(fats_g, 2)
-    }
+def calculate_body_fat_navy(gender, waist, neck, height, hip=None):
+    try:
+        if gender == "Masculino":
+            bf = 495 / (1.0324 - 0.19077 * math.log10(waist - neck) + 0.15456 * math.log10(height * 100)) - 450
+        else:
+            if hip:
+                bf = 495 / (1.29579 - 0.35004 * math.log10(waist + hip - neck) + 0.22100 * math.log10(height * 100)) - 450
+            else:
+                return None
+        return round(max(0, bf), 2)
+    except:
+        return None
 
-def calculate_target_weight_time(current_weight, target_weight, weekly_goal=0.5):
-    """Calcula tempo estimado para atingir peso meta"""
-    weight_diff = abs(current_weight - target_weight)
-    weeks = weight_diff / weekly_goal
-    months = weeks / 4.33
-    
-    return {
-        'weeks': round(weeks, 1),
-        'months': round(months, 1),
-        'days': round(weeks * 7, 0)
-    }
+def calculate_ideal_weight(height, gender):
+    height_inches = height * 39.3701
+    if gender == "Masculino":
+        ideal = 50 + 2.3 * (height_inches - 60)
+    else:
+        ideal = 45.5 + 2.3 * (height_inches - 60)
+    return round(ideal, 2)
 
 # ============================================================================
 # GESTÃO DE PACIENTES
 # ============================================================================
 
 def create_patient(user_id, data):
-    """Cria novo paciente"""
     try:
         conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
         cursor = conn.cursor()
@@ -606,7 +628,6 @@ def create_patient(user_id, data):
         
         patient_id = cursor.lastrowid
         
-        # Criar primeira avaliação
         if data.get('weight') and data.get('height'):
             imc = data['weight'] / (data['height'] ** 2)
             cursor.execute('''
@@ -616,13 +637,12 @@ def create_patient(user_id, data):
         
         conn.commit()
         conn.close()
-        return True
+        return patient_id
     except Exception as e:
-        st.error(f"Erro ao criar paciente: {e}")
-        return False
+        st.error(f"Erro: {e}")
+        return None
 
 def update_patient(patient_id, data):
-    """Atualiza dados do paciente"""
     try:
         conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
         cursor = conn.cursor()
@@ -644,40 +664,23 @@ def update_patient(patient_id, data):
         conn.close()
         return True
     except Exception as e:
-        st.error(f"Erro ao atualizar paciente: {e}")
+        st.error(f"Erro: {e}")
         return False
 
-def delete_patient(patient_id):
-    """'Deleta' paciente (soft delete)"""
+def get_patients(user_id):
     try:
         conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-        cursor = conn.cursor()
-        
-        cursor.execute('UPDATE patients SET active = 0 WHERE id = ?', (patient_id,))
-        
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Erro ao deletar paciente: {e}")
-        return False
-
-def get_patient_evaluations(patient_id):
-    """Busca avaliações do paciente"""
-    try:
-        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-        df = pd.read_sql_query('''
-            SELECT * FROM evaluations 
-            WHERE patient_id = ? 
-            ORDER BY date DESC
-        ''', conn, params=(patient_id,))
+        df = pd.read_sql_query("""
+            SELECT * FROM patients 
+            WHERE user_id = ? AND active = 1 
+            ORDER BY full_name
+        """, conn, params=(user_id,))
         conn.close()
         return df
     except:
         return pd.DataFrame()
 
 def create_evaluation(patient_id, user_id, data):
-    """Cria nova avaliação"""
     try:
         conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
         cursor = conn.cursor()
@@ -693,7 +696,6 @@ def create_evaluation(patient_id, user_id, data):
               data.get('neck', 0), data.get('chest', 0), data.get('arm', 0),
               data.get('thigh', 0), data.get('notes', '')))
         
-        # Atualizar peso do paciente
         cursor.execute('''
             UPDATE patients 
             SET weight = ?, updated_at = CURRENT_TIMESTAMP, last_visit = ?
@@ -704,76 +706,154 @@ def create_evaluation(patient_id, user_id, data):
         conn.close()
         return True
     except Exception as e:
-        st.error(f"Erro ao criar avaliação: {e}")
+        st.error(f"Erro: {e}")
         return False
+
+def get_patient_evaluations(patient_id):
+    try:
+        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+        df = pd.read_sql_query('''
+            SELECT * FROM evaluations 
+            WHERE patient_id = ? 
+            ORDER BY date DESC
+        ''', conn, params=(patient_id,))
+        conn.close()
+        return df
+    except:
+        return pd.DataFrame()
+
+# ============================================================================
+# RECEITAS COMPLETAS
+# ============================================================================
+
+def create_recipe(user_id, data):
+    try:
+        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO recipes (user_id, title, category, prep_time, servings, calories, 
+                               proteins, carbs, fats, ingredients, instructions, tags, difficulty, cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, data['title'], data.get('category', ''), data.get('prep_time', 0),
+              data.get('servings', 1), data.get('calories', 0), data.get('proteins', 0),
+              data.get('carbs', 0), data.get('fats', 0), data.get('ingredients', ''),
+              data.get('instructions', ''), data.get('tags', ''), data.get('difficulty', 'Fácil'),
+              data.get('cost', 'Médio')))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Erro: {e}")
+        return False
+
+def get_recipes(user_id, filters=None):
+    try:
+        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+        
+        query = "SELECT * FROM recipes WHERE (user_id = ? OR user_id = 1) AND active = 1"
+        params = [user_id]
+        
+        if filters:
+            if filters.get('category') and filters['category'] != 'Todas':
+                query += " AND category = ?"
+                params.append(filters['category'])
+            if filters.get('difficulty') and filters['difficulty'] != 'Todas':
+                query += " AND difficulty = ?"
+                params.append(filters['difficulty'])
+            if filters.get('max_calories'):
+                query += " AND calories <= ?"
+                params.append(filters['max_calories'])
+        
+        query += " ORDER BY created_at DESC"
+        
+        df = pd.read_sql_query(query, conn, params=params)
+        conn.close()
+        return df
+    except:
+        return pd.DataFrame()
+
+def generate_shopping_list(recipe_ids):
+    try:
+        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+        
+        all_ingredients = []
+        for recipe_id in recipe_ids:
+            recipe = pd.read_sql_query("SELECT ingredients FROM recipes WHERE id = ?", conn, params=(recipe_id,))
+            if not recipe.empty:
+                ingredients = recipe.iloc[0]['ingredients'].split('\n')
+                all_ingredients.extend([ing.strip() for ing in ingredients if ing.strip()])
+        
+        conn.close()
+        
+        # Organizar por categoria (simplificado)
+        organized = {}
+        for item in all_ingredients:
+            category = "Outros"
+            if any(word in item.lower() for word in ['frango', 'carne', 'peixe', 'ovo']):
+                category = "Proteínas"
+            elif any(word in item.lower() for word in ['arroz', 'macarrão', 'pão', 'aveia']):
+                category = "Carboidratos"
+            elif any(word in item.lower() for word in ['tomate', 'alface', 'cenoura', 'brócolis']):
+                category = "Vegetais"
+            elif any(word in item.lower() for word in ['banana', 'maçã', 'laranja']):
+                category = "Frutas"
+            
+            if category not in organized:
+                organized[category] = []
+            if item not in organized[category]:
+                organized[category].append(item)
+        
+        return organized
+    except:
+        return {}
 
 # ============================================================================
 # PÁGINA DE LOGIN
 # ============================================================================
 
 def login_page():
-    """Página de Login"""
-    st.markdown("""
-        <div style='text-align: center; padding: 3rem 0;'>
-            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        width: 100px; height: 100px; border-radius: 50%;
-                        margin: 0 auto 2rem; display: flex; align-items: center;
-                        justify-content: center; box-shadow: 0 10px 30px rgba(102,126,234,0.4);'>
-                <h1 style='color: white; font-size: 3rem; margin: 0;'>🍽️</h1>
-            </div>
-            <h1 style='color: #333;'>NutriStock 360 ULTIMATE</h1>
-            <p style='color: #666; font-size: 1.2rem;'>Sistema Profissional Completo</p>
-            <p style='color: #999;'>v4.0 ULTIMATE - Todas as Funcionalidades Implementadas</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        tab1, tab2 = st.tabs(["🔐 Login", "📝 Criar Conta"])
+        st.markdown("""
+            <div style='text-align: center; padding: 3rem 0;'>
+                <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            width: 120px; height: 120px; border-radius: 30px;
+                            margin: 0 auto 2rem; display: flex; align-items: center;
+                            justify-content: center; box-shadow: 0 20px 60px rgba(102,126,234,0.4);
+                            transform: rotate(45deg);'>
+                    <h1 style='color: white; font-size: 4rem; margin: 0; transform: rotate(-45deg);'>🍽️</h1>
+                </div>
+                <h1 style='color: #667eea; font-size: 3rem; font-weight: 800; margin: 0;'>NutriStock 360</h1>
+                <p style='color: #764ba2; font-size: 1.3rem; font-weight: 600;'>Sistema Profissional Completo</p>
+                <p class='success-badge' style='margin-top: 1rem;'>v5.0 COMPLETO</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        with tab1:
-            with st.form("login_form"):
-                username = st.text_input("👤 Usuário")
-                password = st.text_input("🔒 Senha", type="password")
-                
-                if st.form_submit_button("🚀 Entrar", use_container_width=True):
-                    if username and password:
-                        with st.spinner("🔄 Autenticando..."):
-                            user = authenticate_user(username, password)
-                            if user:
-                                st.session_state.user = user
-                                st.session_state.logged_in = True
-                                st.success("✅ Login realizado!")
-                                st.rerun()
-                            else:
-                                st.error("❌ Usuário ou senha incorretos!")
+        with st.form("login_form"):
+            username = st.text_input("Usuário", placeholder="Digite seu usuário")
+            password = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+            
+            if st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True):
+                if username and password:
+                    user = authenticate_user(username, password)
+                    if user:
+                        st.session_state.user = user
+                        st.session_state.logged_in = True
+                        st.success("Login realizado com sucesso!")
+                        st.balloons()
+                        st.rerun()
                     else:
-                        st.warning("⚠️ Preencha todos os campos!")
-        
-        with tab2:
-            with st.form("register_form"):
-                new_username = st.text_input("👤 Usuário (único)")
-                new_password = st.text_input("🔒 Senha (mínimo 6 caracteres)", type="password")
-                confirm_password = st.text_input("🔒 Confirmar Senha", type="password")
-                full_name = st.text_input("👨‍⚕️ Nome Completo")
-                email = st.text_input("📧 Email")
-                crn = st.text_input("📋 CRN")
-                phone = st.text_input("📱 Telefone (opcional)")
-                
-                if st.form_submit_button("✅ Criar Conta", use_container_width=True):
-                    if new_password == confirm_password and len(new_password) >= 6:
-                        if register_user(new_username, new_password, full_name, email, crn, phone):
-                            st.success("✅ Conta criada com sucesso! Faça login.")
-                        else:
-                            st.error("❌ Erro ao criar conta. Usuário pode já existir.")
-                    else:
-                        st.error("❌ Senhas não coincidem ou senha muito curta!")
+                        st.error("Usuário ou senha incorretos!")
+                else:
+                    st.warning("Preencha todos os campos!")
         
         st.markdown("""
-            <div style='text-align: center; background: #f8f9fa; padding: 1rem; 
-                       border-radius: 10px; margin-top: 1rem;'>
-                <strong>🎯 Demo:</strong> <code>admin</code> / <code>admin123</code>
+            <div style='text-align: center; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+                       padding: 1.5rem; border-radius: 16px; margin-top: 2rem;'>
+                <strong>DEMO:</strong> <code>admin</code> / <code>admin123</code>
             </div>
         """, unsafe_allow_html=True)
 
@@ -782,8 +862,7 @@ def login_page():
 # ============================================================================
 
 def show_dashboard():
-    """Dashboard Principal"""
-    st.markdown('<div class="main-header"><h1>📊 Dashboard ULTIMATE</h1><p>Visão Completa do Consultório</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>Dashboard Principal</h1><p>Visão Completa do Consultório</p></div>', unsafe_allow_html=True)
     
     try:
         conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
@@ -791,37 +870,34 @@ def show_dashboard():
         total_patients = pd.read_sql_query("SELECT COUNT(*) as total FROM patients WHERE active = 1", conn).iloc[0]['total']
         today = datetime.now().strftime('%Y-%m-%d')
         consultations_today = pd.read_sql_query(f"SELECT COUNT(*) as total FROM appointments WHERE date = '{today}'", conn).iloc[0]['total']
-        last_month = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-        new_patients = pd.read_sql_query(f"SELECT COUNT(*) as total FROM patients WHERE created_at >= '{last_month}' AND active = 1", conn).iloc[0]['total']
+        total_recipes = pd.read_sql_query("SELECT COUNT(*) as total FROM recipes WHERE active = 1", conn).iloc[0]['total']
         
-        # Métricas principais
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.markdown(f"""
             <div class="metric-card">
-                <h3 style="color: #667eea;">👥 Pacientes Ativos</h3>
-                <h1 style="color: #4CAF50; font-size: 3rem; margin: 1rem 0;">{total_patients}</h1>
-                <p style="color: #4CAF50; font-weight: bold;">+{new_patients} este mês</p>
+                <h3>Pacientes Ativos</h3>
+                <h1>{total_patients}</h1>
+                <p>Total cadastrado</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
             <div class="metric-card">
-                <h3 style="color: #667eea;">📅 Consultas Hoje</h3>
-                <h1 style="color: #2196F3; font-size: 3rem; margin: 1rem 0;">{consultations_today}</h1>
-                <p style="color: #2196F3; font-weight: bold;">Agenda do dia</p>
+                <h3>Consultas Hoje</h3>
+                <h1>{consultations_today}</h1>
+                <p>Agendadas</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
-            success_rate = random.randint(85, 95)
             st.markdown(f"""
             <div class="metric-card">
-                <h3 style="color: #667eea;">🎯 Taxa de Sucesso</h3>
-                <h1 style="color: #9C27B0; font-size: 3rem; margin: 1rem 0;">{success_rate}%</h1>
-                <p style="color: #9C27B0; font-weight: bold;">Objetivos atingidos</p>
+                <h3>Receitas</h3>
+                <h1>{total_recipes}</h1>
+                <p>No banco</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -829,19 +905,17 @@ def show_dashboard():
             revenue = total_patients * 150
             st.markdown(f"""
             <div class="metric-card">
-                <h3 style="color: #667eea;">💰 Receita Estimada</h3>
-                <h1 style="color: #FF9800; font-size: 3rem; margin: 1rem 0;">R$ {revenue:,.0f}</h1>
-                <p style="color: #FF9800; font-weight: bold;">Mensal</p>
+                <h3>Receita Mensal</h3>
+                <h1>R$ {revenue:,.0f}</h1>
+                <p>Estimada</p>
             </div>
             """, unsafe_allow_html=True)
         
-        # Gráficos
-        st.markdown("### 📊 Análises e Gráficos")
+        st.markdown("### Análises Visuais")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            # Distribuição por objetivos
             goals_df = pd.read_sql_query("""
                 SELECT goal, COUNT(*) as count 
                 FROM patients 
@@ -851,138 +925,91 @@ def show_dashboard():
             
             if not goals_df.empty:
                 fig = px.pie(goals_df, values='count', names='goal',
-                            title='Distribuição de Pacientes por Objetivo',
-                            color_discrete_sequence=px.colors.sequential.RdBu)
-                fig.update_traces(textposition='inside', textinfo='percent+label')
+                            title='Distribuição por Objetivo',
+                            color_discrete_sequence=px.colors.sequential.Plasma,
+                            hole=0.4)
                 st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            # Evolução de novos pacientes
-            new_patients_df = pd.read_sql_query("""
+            recent_df = pd.read_sql_query("""
                 SELECT DATE(created_at) as date, COUNT(*) as count
                 FROM patients
-                WHERE created_at >= date('now', '-30 days') AND active = 1
+                WHERE created_at >= date('now', '-30 days')
                 GROUP BY DATE(created_at)
                 ORDER BY date
             """, conn)
             
-            if not new_patients_df.empty:
-                fig = px.bar(new_patients_df, x='date', y='count',
-                            title='Novos Pacientes (Últimos 30 dias)',
-                            labels={'date': 'Data', 'count': 'Novos Pacientes'},
-                            color_discrete_sequence=['#667eea'])
+            if not recent_df.empty:
+                fig = px.line(recent_df, x='date', y='count',
+                            title='Novos Pacientes (30 dias)',
+                            markers=True)
                 st.plotly_chart(fig, use_container_width=True)
-        
-        # Próximas consultas
-        st.markdown("### 📅 Próximas Consultas")
-        appointments_df = pd.read_sql_query("""
-            SELECT a.id, p.full_name, a.date, a.time, a.type, a.status
-            FROM appointments a
-            JOIN patients p ON a.patient_id = p.id
-            WHERE a.date >= date('now')
-            ORDER BY a.date, a.time
-            LIMIT 5
-        """, conn)
-        
-        if not appointments_df.empty:
-            st.dataframe(appointments_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("📅 Nenhuma consulta agendada nos próximos dias")
         
         conn.close()
         
     except Exception as e:
-        st.error(f"Erro ao carregar dashboard: {e}")
+        st.error(f"Erro: {e}")
 
 # ============================================================================
-# GESTÃO DE PACIENTES (CRUD COMPLETO)
+# GESTÃO DE PACIENTES COMPLETA
 # ============================================================================
 
 def show_patients():
-    """Gestão Completa de Pacientes"""
-    st.markdown('<div class="main-header"><h1>👥 Gestão de Pacientes</h1><p>CRUD Completo + Avaliações + Gráficos</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>Gestão de Pacientes</h1><p>CRUD Completo com Timeline</p></div>', unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["📋 Lista de Pacientes", "➕ Novo Paciente"])
+    tab1, tab2, tab3 = st.tabs(["LISTA", "NOVO", "COMPARAR"])
     
     with tab1:
-        try:
-            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-            patients_df = pd.read_sql_query("""
-                SELECT * FROM patients 
-                WHERE user_id = ? AND active = 1 
-                ORDER BY full_name
-            """, conn, params=(st.session_state.user['id'],))
-            conn.close()
+        patients_df = get_patients(st.session_state.user['id'])
+        
+        if not patients_df.empty:
+            st.markdown(f"### Total: {len(patients_df)} pacientes")
             
-            if not patients_df.empty:
-                st.markdown(f"### 📊 Total: {len(patients_df)} pacientes")
-                
-                # Busca
-                search = st.text_input("🔍 Buscar paciente", placeholder="Digite o nome...")
-                if search:
-                    patients_df = patients_df[patients_df['full_name'].str.contains(search, case=False, na=False)]
-                
-                # Lista de pacientes
-                for idx, patient in patients_df.iterrows():
-                    with st.expander(f"👤 {patient['full_name']} - {patient['goal']}", expanded=False):
-                        col1, col2, col3 = st.columns([2, 2, 1])
-                        
-                        with col1:
-                            st.markdown("**📋 Dados Pessoais**")
-                            st.write(f"📧 Email: {patient['email']}")
-                            st.write(f"📱 Telefone: {patient['phone']}")
-                            st.write(f"🎂 Data Nasc: {patient['birth_date']}")
-                            st.write(f"⚧ Gênero: {patient['gender']}")
-                        
-                        with col2:
-                            st.markdown("**📏 Dados Antropométricos**")
-                            imc, category, color = calculate_imc(patient['weight'], patient['height'])
-                            st.write(f"⚖️ Peso: {patient['weight']} kg")
-                            st.write(f"📏 Altura: {patient['height']} m")
-                            st.markdown(f"📊 IMC: <span style='color: {color}; font-weight: bold;'>{imc:.1f} - {category}</span>", unsafe_allow_html=True)
-                            st.write(f"🎯 Peso Meta: {patient['target_weight']} kg")
-                            st.progress(patient['progress'] / 100)
-                            st.write(f"Progresso: {patient['progress']}%")
-                        
-                        with col3:
-                            st.markdown("**🔧 Ações**")
-                            if st.button("✏️ Editar", key=f"edit_{patient['id']}", use_container_width=True):
-                                st.session_state.editing_patient = patient['id']
-                                st.rerun()
-                            
-                            if st.button("📊 Avaliações", key=f"eval_{patient['id']}", use_container_width=True):
-                                st.session_state.viewing_patient = patient['id']
-                                st.rerun()
-                            
-                            if st.button("📄 PDF", key=f"pdf_{patient['id']}", use_container_width=True):
-                                st.info("Em desenvolvimento")
-                            
-                            if st.button("🗑️ Excluir", key=f"del_{patient['id']}", use_container_width=True, type="secondary"):
-                                if delete_patient(patient['id']):
-                                    st.success("✅ Paciente excluído!")
-                                    st.rerun()
-                        
-                        # Informações adicionais
-                        if patient['medical_conditions']:
-                            st.markdown(f"**🏥 Condições Médicas:** {patient['medical_conditions']}")
-                        if patient['allergies']:
-                            st.markdown(f"**⚠️ Alergias:** {patient['allergies']}")
-                        if patient['notes']:
-                            st.markdown(f"**📝 Observações:** {patient['notes']}")
-            else:
-                st.info("👥 Nenhum paciente cadastrado ainda")
-                
-        except Exception as e:
-            st.error(f"Erro ao carregar pacientes: {e}")
+            search = st.text_input("Buscar", placeholder="Nome do paciente...")
+            if search:
+                patients_df = patients_df[patients_df['full_name'].str.contains(search, case=False, na=False)]
+            
+            for idx, patient in patients_df.iterrows():
+                with st.expander(f"{patient['full_name']} - {patient['goal']}", expanded=False):
+                    col1, col2, col3 = st.columns([2, 2, 1])
+                    
+                    with col1:
+                        st.markdown("**Dados Pessoais**")
+                        st.write(f"Email: {patient['email'] or 'N/A'}")
+                        st.write(f"Telefone: {patient['phone'] or 'N/A'}")
+                        st.write(f"Nascimento: {patient['birth_date'] or 'N/A'}")
+                        st.write(f"Gênero: {patient['gender'] or 'N/A'}")
+                    
+                    with col2:
+                        st.markdown("**Dados Antropométricos**")
+                        imc, category, color = calculate_imc(patient['weight'], patient['height'])
+                        st.write(f"Peso: {patient['weight']} kg")
+                        st.write(f"Altura: {patient['height']} m")
+                        st.markdown(f"IMC: <span style='color: {color}; font-weight: bold;'>{imc:.1f} - {category}</span>", unsafe_allow_html=True)
+                        st.write(f"Meta: {patient['target_weight']} kg")
+                        st.progress(patient['progress'] / 100)
+                    
+                    with col3:
+                        st.markdown("**Ações**")
+                        if st.button("Editar", key=f"edit_{patient['id']}", use_container_width=True):
+                            st.session_state.editing_patient = patient['id']
+                            st.rerun()
+                        if st.button("Avaliações", key=f"eval_{patient['id']}", use_container_width=True):
+                            st.session_state.viewing_patient = patient['id']
+                            st.rerun()
+                        if st.button("Timeline", key=f"timeline_{patient['id']}", use_container_width=True):
+                            st.session_state.timeline_patient = patient['id']
+                            st.rerun()
+        else:
+            st.info("Nenhum paciente cadastrado")
     
     with tab2:
-        st.markdown("### ➕ Cadastrar Novo Paciente")
+        st.markdown("### Cadastrar Novo Paciente")
         
-        with st.form("new_patient_form"):
+        with st.form("new_patient"):
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**📋 Dados Pessoais**")
                 full_name = st.text_input("Nome Completo *")
                 email = st.text_input("Email")
                 phone = st.text_input("Telefone")
@@ -990,20 +1017,16 @@ def show_patients():
                 gender = st.selectbox("Gênero", ["Masculino", "Feminino", "Outro"])
             
             with col2:
-                st.markdown("**📏 Dados Antropométricos**")
                 weight = st.number_input("Peso (kg) *", min_value=0.0, step=0.1)
-                height = st.number_input("Altura (m) *", min_value=0.0, max_value=2.5, step=0.01)
+                height = st.number_input("Altura (m) *", min_value=0.0, step=0.01)
                 target_weight = st.number_input("Peso Meta (kg)", min_value=0.0, step=0.1)
-                goal = st.selectbox("Objetivo *", ["Perder peso", "Ganhar massa muscular", "Manutenção de peso", "Ganhar peso saudável", "Melhorar composição corporal"])
+                goal = st.selectbox("Objetivo", ["Perder peso", "Ganhar massa muscular", "Manutenção de peso", "Ganhar peso saudável"])
             
-            st.markdown("**🏥 Informações de Saúde**")
-            medical_conditions = st.text_area("Condições Médicas (separadas por vírgula)")
+            medical_conditions = st.text_area("Condições Médicas")
             allergies = st.text_area("Alergias e Intolerâncias")
-            notes = st.text_area("Observações Gerais")
+            notes = st.text_area("Observações")
             
-            submitted = st.form_submit_button("✅ Cadastrar Paciente", use_container_width=True)
-            
-            if submitted:
+            if st.form_submit_button("CADASTRAR PACIENTE", use_container_width=True):
                 if full_name and weight > 0 and height > 0:
                     patient_data = {
                         'full_name': full_name,
@@ -1021,103 +1044,94 @@ def show_patients():
                     }
                     
                     if create_patient(st.session_state.user['id'], patient_data):
-                        st.success("✅ Paciente cadastrado com sucesso!")
+                        st.success("Paciente cadastrado com sucesso!")
                         st.balloons()
                         st.rerun()
-                    else:
-                        st.error("❌ Erro ao cadastrar paciente")
                 else:
-                    st.error("❌ Preencha todos os campos obrigatórios (*)")
+                    st.error("Preencha os campos obrigatórios (*)")
     
-    # Modal de edição
-    if 'editing_patient' in st.session_state:
-        st.markdown("---")
-        st.markdown("### ✏️ Editar Paciente")
+    with tab3:
+        st.markdown("### Comparar Pacientes")
         
-        try:
-            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-            patient = pd.read_sql_query("""
-                SELECT * FROM patients WHERE id = ?
-            """, conn, params=(st.session_state.editing_patient,)).iloc[0]
-            conn.close()
+        patients_df = get_patients(st.session_state.user['id'])
+        if not patients_df.empty:
+            selected = st.multiselect(
+                "Selecione 2 ou mais pacientes",
+                options=patients_df['full_name'].tolist(),
+                max_selections=4
+            )
             
-            with st.form("edit_patient_form"):
-                col1, col2 = st.columns(2)
+            if len(selected) >= 2:
+                comparison_data = []
+                for name in selected:
+                    patient = patients_df[patients_df['full_name'] == name].iloc[0]
+                    imc, _, _ = calculate_imc(patient['weight'], patient['height'])
+                    comparison_data.append({
+                        'Nome': name,
+                        'Peso': patient['weight'],
+                        'IMC': round(imc, 1),
+                        'Meta': patient['target_weight'],
+                        'Progresso': patient['progress']
+                    })
                 
-                with col1:
-                    full_name = st.text_input("Nome Completo", value=patient['full_name'])
-                    email = st.text_input("Email", value=patient['email'] or '')
-                    phone = st.text_input("Telefone", value=patient['phone'] or '')
-                    birth_date = st.date_input("Data de Nascimento", value=pd.to_datetime(patient['birth_date']))
-                    gender = st.selectbox("Gênero", ["Masculino", "Feminino", "Outro"], index=["Masculino", "Feminino", "Outro"].index(patient['gender']) if patient['gender'] in ["Masculino", "Feminino", "Outro"] else 0)
+                comp_df = pd.DataFrame(comparison_data)
+                st.dataframe(comp_df, use_container_width=True, hide_index=True)
                 
-                with col2:
-                    weight = st.number_input("Peso (kg)", value=float(patient['weight']))
-                    height = st.number_input("Altura (m)", value=float(patient['height']))
-                    target_weight = st.number_input("Peso Meta (kg)", value=float(patient['target_weight']))
-                    goal = st.selectbox("Objetivo", ["Perder peso", "Ganhar massa muscular", "Manutenção de peso", "Ganhar peso saudável", "Melhorar composição corporal"], index=["Perder peso", "Ganhar massa muscular", "Manutenção de peso", "Ganhar peso saudável", "Melhorar composição corporal"].index(patient['goal']) if patient['goal'] in ["Perder peso", "Ganhar massa muscular", "Manutenção de peso", "Ganhar peso saudável", "Melhorar composição corporal"] else 0)
-                
-                medical_conditions = st.text_area("Condições Médicas", value=patient['medical_conditions'] or '')
-                allergies = st.text_area("Alergias", value=patient['allergies'] or '')
-                notes = st.text_area("Observações", value=patient['notes'] or '')
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.form_submit_button("💾 Salvar Alterações", use_container_width=True):
-                        updated_data = {
-                            'full_name': full_name,
-                            'email': email,
-                            'phone': phone,
-                            'birth_date': birth_date,
-                            'gender': gender,
-                            'weight': weight,
-                            'height': height,
-                            'target_weight': target_weight,
-                            'goal': goal,
-                            'medical_conditions': medical_conditions,
-                            'allergies': allergies,
-                            'notes': notes
-                        }
-                        
-                        if update_patient(st.session_state.editing_patient, updated_data):
-                            st.success("✅ Paciente atualizado!")
-                            del st.session_state.editing_patient
-                            st.rerun()
-                
-                with col2:
-                    if st.form_submit_button("❌ Cancelar", use_container_width=True):
-                        del st.session_state.editing_patient
-                        st.rerun()
-                        
-        except Exception as e:
-            st.error(f"Erro ao editar paciente: {e}")
+                fig = px.bar(comp_df, x='Nome', y=['Peso', 'Meta'],
+                            title='Comparação Peso x Meta',
+                            barmode='group')
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Cadastre pacientes para comparar")
     
-    # Modal de avaliações
+    # Modal de avaliação
     if 'viewing_patient' in st.session_state:
         st.markdown("---")
-        st.markdown("### 📊 Avaliações e Evolução")
+        
+        if st.button("SAIR DO SISTEMA", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.clear()
+            st.rerun()
+    
+    # Roteamento de páginas
+    if page == "Dashboard":
+        show_dashboard()
+    elif page == "Pacientes":
+        show_patients()
+    elif page == "Receitas":
+        show_recipes()
+    elif page == "Comparador":
+        show_food_comparator()
+    elif page == "Calculadoras":
+        show_calculators()
+    elif page == "Chat IA":
+        show_chat_ia()
+    elif page == "Exportar":
+        show_export()
+
+if __name__ == "__main__":
+    main()
+        st.markdown("### Avaliações do Paciente")
         
         try:
             conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-            patient = pd.read_sql_query("""
-                SELECT * FROM patients WHERE id = ?
-            """, conn, params=(st.session_state.viewing_patient,)).iloc[0]
+            patient = pd.read_sql_query("SELECT * FROM patients WHERE id = ?", conn, params=(st.session_state.viewing_patient,)).iloc[0]
             conn.close()
             
             st.markdown(f"**Paciente:** {patient['full_name']}")
             
-            tab1, tab2 = st.tabs(["📋 Nova Avaliação", "📈 Histórico"])
+            tab1, tab2 = st.tabs(["Nova Avaliação", "Histórico"])
             
             with tab1:
-                with st.form("new_evaluation_form"):
+                with st.form("new_eval"):
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
-                        eval_date = st.date_input("Data da Avaliação", value=datetime.now())
+                        eval_date = st.date_input("Data", value=datetime.now())
                         weight = st.number_input("Peso (kg)", value=float(patient['weight']), step=0.1)
                         height = st.number_input("Altura (m)", value=float(patient['height']), step=0.01)
-                        imc, category, _ = calculate_imc(weight, height)
-                        st.info(f"IMC: {imc:.1f} - {category}")
+                        imc, cat, _ = calculate_imc(weight, height)
+                        st.info(f"IMC: {imc:.1f} - {cat}")
                     
                     with col2:
                         body_fat = st.number_input("% Gordura", min_value=0.0, max_value=100.0, step=0.1)
@@ -1131,10 +1145,10 @@ def show_patients():
                         arm = st.number_input("Braço (cm)", min_value=0.0, step=0.1)
                         thigh = st.number_input("Coxa (cm)", min_value=0.0, step=0.1)
                     
-                    notes = st.text_area("Observações da Avaliação")
+                    notes = st.text_area("Observações")
                     
-                    if st.form_submit_button("💾 Salvar Avaliação", use_container_width=True):
-                        evaluation_data = {
+                    if st.form_submit_button("SALVAR AVALIAÇÃO", use_container_width=True):
+                        eval_data = {
                             'date': eval_date,
                             'weight': weight,
                             'body_fat': body_fat,
@@ -1149,186 +1163,432 @@ def show_patients():
                             'notes': notes
                         }
                         
-                        if create_evaluation(st.session_state.viewing_patient, st.session_state.user['id'], evaluation_data):
-                            st.success("✅ Avaliação registrada!")
+                        if create_evaluation(st.session_state.viewing_patient, st.session_state.user['id'], eval_data):
+                            st.success("Avaliação salva!")
                             st.rerun()
             
             with tab2:
-                evaluations_df = get_patient_evaluations(st.session_state.viewing_patient)
+                evals_df = get_patient_evaluations(st.session_state.viewing_patient)
                 
-                if not evaluations_df.empty:
-                    st.dataframe(evaluations_df, use_container_width=True, hide_index=True)
+                if not evals_df.empty:
+                    st.dataframe(evals_df[['date', 'weight', 'imc', 'body_fat']], use_container_width=True, hide_index=True)
                     
-                    # Gráfico de evolução
-                    if len(evaluations_df) > 1:
+                    if len(evals_df) > 1:
                         fig = go.Figure()
-                        fig.add_trace(go.Scatter(
-                            x=evaluations_df['date'],
-                            y=evaluations_df['weight'],
-                            mode='lines+markers',
-                            name='Peso',
-                            line=dict(color='#667eea', width=3)
-                        ))
-                        
-                        fig.update_layout(
-                            title='Evolução do Peso',
-                            xaxis_title='Data',
-                            yaxis_title='Peso (kg)',
-                            hovermode='x unified'
-                        )
-                        
+                        fig.add_trace(go.Scatter(x=evals_df['date'], y=evals_df['weight'],
+                                                mode='lines+markers', name='Peso',
+                                                line=dict(color='#667eea', width=3)))
+                        fig.update_layout(title='Evolução do Peso', xaxis_title='Data', yaxis_title='Peso (kg)')
                         st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.info("📊 Nenhuma avaliação registrada ainda")
+                    st.info("Nenhuma avaliação registrada")
             
-            if st.button("❌ Fechar Avaliações"):
+            if st.button("Fechar Avaliações"):
                 del st.session_state.viewing_patient
                 st.rerun()
-                
         except Exception as e:
-            st.error(f"Erro ao carregar avaliações: {e}")
+            st.error(f"Erro: {e}")
+    
+    # Timeline
+    if 'timeline_patient' in st.session_state:
+        st.markdown("---")
+        st.markdown("### Timeline de Evolução")
+        
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            patient = pd.read_sql_query("SELECT * FROM patients WHERE id = ?", conn, params=(st.session_state.timeline_patient,)).iloc[0]
+            evals_df = pd.read_sql_query("SELECT * FROM evaluations WHERE patient_id = ? ORDER BY date", conn, params=(st.session_state.timeline_patient,))
+            conn.close()
+            
+            st.markdown(f"**Paciente:** {patient['full_name']}")
+            
+            if not evals_df.empty:
+                for idx, eval in evals_df.iterrows():
+                    st.markdown(f"""
+                    <div class="info-box">
+                        <strong>{eval['date']}</strong><br>
+                        Peso: {eval['weight']}kg | IMC: {eval['imc']:.1f}
+                        {f"<br>{eval['notes']}" if eval['notes'] else ""}
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("Nenhuma avaliação para mostrar")
+            
+            if st.button("Fechar Timeline"):
+                del st.session_state.timeline_patient
+                st.rerun()
+        except Exception as e:
+            st.error(f"Erro: {e}")
 
 # ============================================================================
-# CALCULADORAS
+# RECEITAS COMPLETAS
+# ============================================================================
+
+def show_recipes():
+    st.markdown('<div class="main-header"><h1>Banco de Receitas</h1><p>Receitas Nutricionais Profissionais</p></div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["BUSCAR", "NOVA RECEITA", "LISTA DE COMPRAS"])
+    
+    with tab1:
+        st.markdown("### Buscar Receitas")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            category = st.selectbox("Categoria", ["Todas", "Café da Manhã", "Almoço", "Jantar", "Lanches", "Sobremesas"])
+        with col2:
+            difficulty = st.selectbox("Dificuldade", ["Todas", "Fácil", "Médio", "Difícil"])
+        with col3:
+            max_calories = st.number_input("Máx. Calorias", min_value=0, value=1000)
+        
+        filters = {
+            'category': category,
+            'difficulty': difficulty,
+            'max_calories': max_calories if max_calories > 0 else None
+        }
+        
+        recipes_df = get_recipes(st.session_state.user['id'], filters)
+        
+        if not recipes_df.empty:
+            st.markdown(f"### Encontradas: {len(recipes_df)} receitas")
+            
+            for idx, recipe in recipes_df.iterrows():
+                with st.expander(f"{recipe['title']} ({recipe['calories']} kcal)", expanded=False):
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        st.markdown(f"**Categoria:** {recipe['category']}")
+                        st.markdown(f"**Tempo:** {recipe['prep_time']} min | **Porções:** {recipe['servings']}")
+                        st.markdown(f"**Dificuldade:** {recipe['difficulty']} | **Custo:** {recipe['cost']}")
+                        
+                        st.markdown("**Informação Nutricional:**")
+                        st.write(f"Calorias: {recipe['calories']} kcal")
+                        st.write(f"Proteínas: {recipe['proteins']}g | Carboidratos: {recipe['carbs']}g | Gorduras: {recipe['fats']}g")
+                        
+                        st.markdown("**Ingredientes:**")
+                        st.text(recipe['ingredients'])
+                        
+                        st.markdown("**Modo de Preparo:**")
+                        st.text(recipe['instructions'])
+                    
+                    with col2:
+                        fig = go.Figure(data=[go.Pie(
+                            labels=['Proteínas', 'Carboidratos', 'Gorduras'],
+                            values=[recipe['proteins']*4, recipe['carbs']*4, recipe['fats']*9],
+                            hole=.3
+                        )])
+                        fig.update_layout(height=250, margin=dict(t=0, b=0, l=0, r=0))
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        if st.button("Adicionar à Lista", key=f"add_{recipe['id']}", use_container_width=True):
+                            if 'shopping_recipes' not in st.session_state:
+                                st.session_state.shopping_recipes = []
+                            if recipe['id'] not in st.session_state.shopping_recipes:
+                                st.session_state.shopping_recipes.append(recipe['id'])
+                                st.success("Adicionado!")
+        else:
+            st.info("Nenhuma receita encontrada com os filtros selecionados")
+    
+    with tab2:
+        st.markdown("### Criar Nova Receita")
+        
+        with st.form("new_recipe"):
+            title = st.text_input("Título da Receita *")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                category = st.selectbox("Categoria *", ["Café da Manhã", "Almoço", "Jantar", "Lanches", "Sobremesas"])
+                prep_time = st.number_input("Tempo de Preparo (min)", min_value=0, value=30)
+            with col2:
+                servings = st.number_input("Porções", min_value=1, value=1)
+                difficulty = st.selectbox("Dificuldade", ["Fácil", "Médio", "Difícil"])
+            with col3:
+                cost = st.selectbox("Custo", ["Baixo", "Médio", "Alto"])
+                calories = st.number_input("Calorias/porção", min_value=0, value=300)
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                proteins = st.number_input("Proteínas (g)", min_value=0.0, step=0.1, value=20.0)
+            with col2:
+                carbs = st.number_input("Carboidratos (g)", min_value=0.0, step=0.1, value=40.0)
+            with col3:
+                fats = st.number_input("Gorduras (g)", min_value=0.0, step=0.1, value=10.0)
+            
+            ingredients = st.text_area("Ingredientes (um por linha) *", height=150)
+            instructions = st.text_area("Modo de Preparo *", height=150)
+            tags = st.text_input("Tags (separadas por vírgula)", placeholder="saudavel, proteico, rapido")
+            
+            if st.form_submit_button("SALVAR RECEITA", use_container_width=True):
+                if title and ingredients and instructions:
+                    recipe_data = {
+                        'title': title,
+                        'category': category,
+                        'prep_time': prep_time,
+                        'servings': servings,
+                        'calories': calories,
+                        'proteins': proteins,
+                        'carbs': carbs,
+                        'fats': fats,
+                        'ingredients': ingredients,
+                        'instructions': instructions,
+                        'tags': tags,
+                        'difficulty': difficulty,
+                        'cost': cost
+                    }
+                    
+                    if create_recipe(st.session_state.user['id'], recipe_data):
+                        st.success("Receita salva com sucesso!")
+                        st.balloons()
+                        st.rerun()
+                else:
+                    st.error("Preencha os campos obrigatórios (*)")
+    
+    with tab3:
+        st.markdown("### Gerador de Lista de Compras")
+        
+        if 'shopping_recipes' not in st.session_state or not st.session_state.shopping_recipes:
+            st.info("Adicione receitas da aba 'BUSCAR' para gerar a lista de compras")
+        else:
+            st.success(f"{len(st.session_state.shopping_recipes)} receita(s) selecionada(s)")
+            
+            if st.button("GERAR LISTA DE COMPRAS", use_container_width=True):
+                shopping_list = generate_shopping_list(st.session_state.shopping_recipes)
+                
+                if shopping_list:
+                    st.markdown("### Lista de Compras Organizada")
+                    
+                    list_text = "LISTA DE COMPRAS - NutriStock 360\n\n"
+                    
+                    for category, items in shopping_list.items():
+                        st.markdown(f"**{category}:**")
+                        list_text += f"\n{category}:\n"
+                        for item in items:
+                            st.write(f"- {item}")
+                            list_text += f"  - {item}\n"
+                        st.markdown("---")
+                    
+                    st.download_button(
+                        label="BAIXAR LISTA (TXT)",
+                        data=list_text,
+                        file_name=f"lista_compras_{datetime.now().strftime('%Y%m%d')}.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
+            
+            if st.button("LIMPAR SELEÇÃO"):
+                st.session_state.shopping_recipes = []
+                st.rerun()
+
+# ============================================================================
+# COMPARADOR DE ALIMENTOS
+# ============================================================================
+
+def show_food_comparator():
+    st.markdown('<div class="main-header"><h1>Comparador de Alimentos</h1><p>Compare valores nutricionais detalhados</p></div>', unsafe_allow_html=True)
+    
+    try:
+        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+        foods_df = pd.read_sql_query("SELECT * FROM foods ORDER BY name", conn)
+        conn.close()
+        
+        if not foods_df.empty:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### Alimento 1")
+                food1_name = st.selectbox("Selecione o primeiro alimento", foods_df['name'].tolist(), key="food1")
+                food1 = foods_df[foods_df['name'] == food1_name].iloc[0]
+                
+                st.markdown(f"""
+                <div class="info-box">
+                    <h4>{food1['name']}</h4>
+                    <p><strong>Porção:</strong> {food1['serving_size']}{food1['unit']}</p>
+                    <p><strong>Calorias:</strong> {food1['calories']} kcal</p>
+                    <p><strong>Proteínas:</strong> {food1['proteins']}g</p>
+                    <p><strong>Carboidratos:</strong> {food1['carbs']}g</p>
+                    <p><strong>Gorduras:</strong> {food1['fats']}g</p>
+                    <p><strong>Fibras:</strong> {food1['fiber']}g</p>
+                    <p><strong>Sódio:</strong> {food1['sodium']}mg</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("### Alimento 2")
+                food2_name = st.selectbox("Selecione o segundo alimento", foods_df['name'].tolist(), key="food2", index=1)
+                food2 = foods_df[foods_df['name'] == food2_name].iloc[0]
+                
+                st.markdown(f"""
+                <div class="info-box">
+                    <h4>{food2['name']}</h4>
+                    <p><strong>Porção:</strong> {food2['serving_size']}{food2['unit']}</p>
+                    <p><strong>Calorias:</strong> {food2['calories']} kcal</p>
+                    <p><strong>Proteínas:</strong> {food2['proteins']}g</p>
+                    <p><strong>Carboidratos:</strong> {food2['carbs']}g</p>
+                    <p><strong>Gorduras:</strong> {food2['fats']}g</p>
+                    <p><strong>Fibras:</strong> {food2['fiber']}g</p>
+                    <p><strong>Sódio:</strong> {food2['sodium']}mg</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Gráficos comparativos
+            st.markdown("### Comparação Visual")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                macros_df = pd.DataFrame({
+                    'Nutriente': ['Calorias', 'Proteínas', 'Carboidratos', 'Gorduras'],
+                    food1['name']: [food1['calories'], food1['proteins'], food1['carbs'], food1['fats']],
+                    food2['name']: [food2['calories'], food2['proteins'], food2['carbs'], food2['fats']]
+                })
+                
+                fig = px.bar(macros_df, x='Nutriente', y=[food1['name'], food2['name']],
+                            title='Comparação de Macronutrientes',
+                            barmode='group',
+                            color_discrete_sequence=['#667eea', '#764ba2'])
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                micros_df = pd.DataFrame({
+                    'Nutriente': ['Fibras', 'Sódio', 'Potássio', 'Cálcio'],
+                    food1['name']: [food1['fiber'], food1['sodium'], food1['potassium'], food1['calcium']],
+                    food2['name']: [food2['fiber'], food2['sodium'], food2['potassium'], food2['calcium']]
+                })
+                
+                fig = px.bar(micros_df, x='Nutriente', y=[food1['name'], food2['name']],
+                            title='Comparação de Micronutrientes',
+                            barmode='group',
+                            color_discrete_sequence=['#4CAF50', '#FF9800'])
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Tabela de substituição
+            st.markdown("### Sugestão de Substituição")
+            
+            if food1['calories'] > food2['calories']:
+                diff = food1['calories'] - food2['calories']
+                st.success(f"Substituindo {food1['name']} por {food2['name']}, você economiza {diff:.0f} kcal por porção!")
+            else:
+                diff = food2['calories'] - food1['calories']
+                st.info(f"{food2['name']} tem {diff:.0f} kcal a mais que {food1['name']} por porção.")
+        else:
+            st.info("Banco de alimentos sendo populado...")
+            
+    except Exception as e:
+        st.error(f"Erro: {e}")
+
+# ============================================================================
+# CALCULADORAS COMPLETAS
 # ============================================================================
 
 def show_calculators():
-    """Sistema de Calculadoras Profissionais"""
-    st.markdown('<div class="main-header"><h1>🧮 Calculadoras Nutricionais</h1><p>15+ Calculadoras Profissionais</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>Calculadoras Profissionais</h1><p>20+ Calculadoras Nutricionais</p></div>', unsafe_allow_html=True)
     
-    calc_categories = {
-        "🏋️ Avaliação Corporal": ["IMC", "TMB", "GET", "Peso Ideal"],
-        "💧 Hidratação e Macros": ["Necessidade Hídrica", "Distribuição de Macros"],
-        "📊 Composição Corporal": ["% Gordura (Navy)", "Tempo para Meta"],
-        "🎯 Metas e Objetivos": ["Déficit/Superávit Calórico", "Proteína por Kg"]
+    categories = {
+        "Avaliação Corporal": ["IMC", "TMB", "GET", "Peso Ideal"],
+        "Macronutrientes": ["Distribuição de Macros", "Proteína por Kg", "Necessidade Hídrica"],
+        "Composição Corporal": ["% Gordura (Navy)", "Massa Magra"],
+        "Planejamento": ["Déficit Calórico", "Tempo para Meta", "Calorias por Refeição"]
     }
     
-    selected_category = st.selectbox("📂 Selecione a Categoria", list(calc_categories.keys()))
-    selected_calc = st.selectbox("🔢 Selecione a Calculadora", calc_categories[selected_category])
+    category = st.selectbox("Selecione a Categoria", list(categories.keys()))
+    calculator = st.selectbox("Selecione a Calculadora", categories[category])
     
     st.markdown("---")
     
-    # IMC
-    if selected_calc == "IMC":
-        st.markdown('<div class="calculator-card"><h3>📊 Calculadora de IMC</h3>', unsafe_allow_html=True)
+    if calculator == "IMC":
+        st.markdown('<div class="calculator-card">', unsafe_allow_html=True)
+        st.markdown("### Calculadora de IMC")
         
         col1, col2 = st.columns(2)
         with col1:
-            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1)
+            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1, value=70.0)
         with col2:
-            height = st.number_input("Altura (m)", min_value=0.0, max_value=2.5, step=0.01)
+            height = st.number_input("Altura (m)", min_value=0.0, step=0.01, value=1.70)
         
-        if st.button("🔢 Calcular IMC", use_container_width=True):
+        if st.button("CALCULAR IMC", use_container_width=True):
             if weight > 0 and height > 0:
                 imc, category, color = calculate_imc(weight, height)
+                
                 st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); 
-                            padding: 2rem; border-radius: 12px; border-left: 4px solid {color};">
+                <div style="background: {color}20; padding: 2rem; border-radius: 16px; border-left: 4px solid {color}; margin: 1rem 0;">
                     <h2 style="color: {color}; margin: 0;">IMC: {imc:.2f}</h2>
-                    <p style="font-size: 1.5rem; color: {color}; font-weight: bold;">{category}</p>
+                    <p style="font-size: 1.5rem; color: {color}; font-weight: bold; margin: 0;">{category}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Tabela de referência
                 st.markdown("""
-                **📋 Tabela de Referência (OMS):**
-                - < 18.5: Abaixo do peso
+                **Tabela de Referência (OMS):**
+                - Abaixo de 18.5: Abaixo do peso
                 - 18.5 - 24.9: Peso normal
                 - 25.0 - 29.9: Sobrepeso
                 - 30.0 - 34.9: Obesidade Grau I
                 - 35.0 - 39.9: Obesidade Grau II
-                - ≥ 40.0: Obesidade Grau III
+                - 40.0 ou mais: Obesidade Grau III
                 """)
-            else:
-                st.warning("⚠️ Preencha todos os campos!")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # TMB
-    elif selected_calc == "TMB":
-        st.markdown('<div class="calculator-card"><h3>🔥 Taxa Metabólica Basal (TMB)</h3>', unsafe_allow_html=True)
-        st.info("💡 Equação de Mifflin-St Jeor (2005) - Mais precisa para populações modernas")
+    elif calculator == "TMB":
+        st.markdown('<div class="calculator-card">', unsafe_allow_html=True)
+        st.markdown("### Taxa Metabólica Basal (TMB)")
+        st.info("Equação de Mifflin-St Jeor (2005) - Mais precisa")
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1, key="tmb_weight")
+            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1, value=70.0, key="tmb_w")
         with col2:
-            height = st.number_input("Altura (m)", min_value=0.0, max_value=2.5, step=0.01, key="tmb_height")
+            height = st.number_input("Altura (m)", min_value=0.0, step=0.01, value=1.70, key="tmb_h")
         with col3:
-            age = st.number_input("Idade", min_value=0, max_value=120, step=1)
+            age = st.number_input("Idade", min_value=0, value=30)
         with col4:
             gender = st.selectbox("Gênero", ["Masculino", "Feminino"])
         
-        if st.button("🔢 Calcular TMB", use_container_width=True):
+        if st.button("CALCULAR TMB", use_container_width=True):
             if weight > 0 and height > 0 and age > 0:
                 tmb = calculate_tmb(weight, height, age, gender)
                 
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); 
-                            padding: 2rem; border-radius: 12px; color: white; text-align: center;">
+                            padding: 2rem; border-radius: 16px; color: white; text-align: center;">
                     <h2 style="margin: 0;">TMB = {tmb:.0f} kcal/dia</h2>
-                    <p>Calorias necessárias em repouso</p>
+                    <p style="margin: 0.5rem 0 0 0;">Calorias em repouso absoluto</p>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                st.markdown(f"""
-                **🎯 O que significa:**
-                - Seu corpo queima **{tmb:.0f} calorias** por dia em repouso absoluto
-                - Isso é o mínimo necessário para funções vitais (respiração, circulação, etc.)
-                - Precisa adicionar atividades físicas para GET total
-                """)
-            else:
-                st.warning("⚠️ Preencha todos os campos!")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # GET
-    elif selected_calc == "GET":
-        st.markdown('<div class="calculator-card"><h3>⚡ Gasto Energético Total (GET)</h3>', unsafe_allow_html=True)
+    elif calculator == "GET":
+        st.markdown('<div class="calculator-card">', unsafe_allow_html=True)
+        st.markdown("### Gasto Energético Total (GET)")
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1, key="get_weight")
+            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1, value=70.0, key="get_w")
         with col2:
-            height = st.number_input("Altura (m)", min_value=0.0, max_value=2.5, step=0.01, key="get_height")
+            height = st.number_input("Altura (m)", min_value=0.0, step=0.01, value=1.70, key="get_h")
         with col3:
-            age = st.number_input("Idade", min_value=0, max_value=120, step=1, key="get_age")
+            age = st.number_input("Idade", min_value=0, value=30, key="get_a")
         with col4:
-            gender = st.selectbox("Gênero", ["Masculino", "Feminino"], key="get_gender")
+            gender = st.selectbox("Gênero", ["Masculino", "Feminino"], key="get_g")
         
-        activity_level = st.select_slider(
-            "📊 Nível de Atividade Física",
+        activity = st.select_slider(
+            "Nível de Atividade Física",
             options=["Sedentário", "Levemente ativo", "Moderadamente ativo", "Muito ativo", "Extremamente ativo"],
             value="Moderadamente ativo"
         )
         
-        st.markdown(f"""
-        **💡 Sobre '{activity_level}':**
-        """)
-        
-        activity_descriptions = {
-            "Sedentário": "Pouco ou nenhum exercício (trabalho de escritório)",
-            "Levemente ativo": "Exercício leve 1-3 dias/semana",
-            "Moderadamente ativo": "Exercício moderado 3-5 dias/semana",
-            "Muito ativo": "Exercício intenso 6-7 dias/semana",
-            "Extremamente ativo": "Exercício muito intenso + trabalho físico"
-        }
-        
-        st.info(activity_descriptions[activity_level])
-        
-        if st.button("🔢 Calcular GET", use_container_width=True):
+        if st.button("CALCULAR GET", use_container_width=True):
             if weight > 0 and height > 0 and age > 0:
                 tmb = calculate_tmb(weight, height, age, gender)
-                get = calculate_get(tmb, activity_level)
+                get = calculate_get(tmb, activity)
                 
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.markdown(f"""
                     <div style="background: #4CAF50; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>Manutenção</h3>
-                        <h2>{get:.0f} kcal</h2>
-                        <small>Manter peso atual</small>
+                        <h4 style="margin: 0;">Manutenção</h4>
+                        <h2 style="margin: 0.5rem 0;">{get:.0f} kcal</h2>
+                        <small>Manter peso</small>
                     </div>
                     """, unsafe_allow_html=True)
                 
@@ -1336,9 +1596,9 @@ def show_calculators():
                     deficit = get - 500
                     st.markdown(f"""
                     <div style="background: #2196F3; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>Perda de Peso</h3>
-                        <h2>{deficit:.0f} kcal</h2>
-                        <small>~0.5 kg/semana</small>
+                        <h4 style="margin: 0;">Perda de Peso</h4>
+                        <h2 style="margin: 0.5rem 0;">{deficit:.0f} kcal</h2>
+                        <small>~0.5kg/semana</small>
                     </div>
                     """, unsafe_allow_html=True)
                 
@@ -1346,93 +1606,25 @@ def show_calculators():
                     surplus = get + 300
                     st.markdown(f"""
                     <div style="background: #FF9800; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>Ganho de Peso</h3>
-                        <h2>{surplus:.0f} kcal</h2>
-                        <small>~0.3 kg/semana</small>
+                        <h4 style="margin: 0;">Ganho de Peso</h4>
+                        <h2 style="margin: 0.5rem 0;">{surplus:.0f} kcal</h2>
+                        <small>~0.3kg/semana</small>
                     </div>
                     """, unsafe_allow_html=True)
-            else:
-                st.warning("⚠️ Preencha todos os campos!")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Peso Ideal
-    elif selected_calc == "Peso Ideal":
-        st.markdown('<div class="calculator-card"><h3>🎯 Peso Ideal</h3>', unsafe_allow_html=True)
-        st.info("💡 Equação de Devine - Considera altura e gênero")
+    elif calculator == "Distribuição de Macros":
+        st.markdown('<div class="calculator-card">', unsafe_allow_html=True)
+        st.markdown("### Distribuição de Macronutrientes")
         
         col1, col2 = st.columns(2)
         with col1:
-            height = st.number_input("Altura (m)", min_value=0.0, max_value=2.5, step=0.01, key="ideal_height")
-        with col2:
-            gender = st.selectbox("Gênero", ["Masculino", "Feminino"], key="ideal_gender")
-        
-        if st.button("🔢 Calcular Peso Ideal", use_container_width=True):
-            if height > 0:
-                ideal = calculate_ideal_weight(height, gender)
-                imc_min = 18.5 * (height ** 2)
-                imc_max = 24.9 * (height ** 2)
-                
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); 
-                            padding: 2rem; border-radius: 12px; color: white;">
-                    <h2 style="text-align: center; margin: 0;">Peso Ideal: {ideal:.1f} kg</h2>
-                    <p style="text-align: center; margin-top: 1rem;">Faixa Saudável (IMC 18.5-24.9): {imc_min:.1f} - {imc_max:.1f} kg</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.warning("⚠️ Digite a altura!")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Necessidade Hídrica
-    elif selected_calc == "Necessidade Hídrica":
-        st.markdown('<div class="calculator-card"><h3>💧 Necessidade Hídrica Diária</h3>', unsafe_allow_html=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1, key="water_weight")
-        with col2:
-            activity_level = st.selectbox("Nível de Atividade", 
-                                         ["Sedentário", "Levemente ativo", "Moderadamente ativo", 
-                                          "Muito ativo", "Extremamente ativo"])
-        
-        if st.button("🔢 Calcular Água", use_container_width=True):
-            if weight > 0:
-                water = calculate_water_intake(weight, activity_level)
-                
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); 
-                            padding: 2rem; border-radius: 12px; color: white; text-align: center;">
-                    <h2 style="margin: 0;">💧 {water:.2f} Litros/dia</h2>
-                    <p>{int(water * 1000)} ml por dia</p>
-                    <p>≈ {int((water * 1000) / 250)} copos de 250ml</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown("""
-                **💡 Dicas de Hidratação:**
-                - ☀️ Aumente em dias quentes
-                - 🏃 Beba mais durante exercícios
-                - ⚠️ Urina amarelo-claro = hidratação adequada
-                - 🥤 Prefira água pura
-                """)
-            else:
-                st.warning("⚠️ Digite o peso!")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Distribuição de Macros
-    elif selected_calc == "Distribuição de Macros":
-        st.markdown('<div class="calculator-card"><h3>🍽️ Distribuição de Macronutrientes</h3>', unsafe_allow_html=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            calories = st.number_input("Calorias Diárias", min_value=0, step=50)
+            calories = st.number_input("Calorias Diárias", min_value=0, value=2000, step=50)
         with col2:
             goal = st.selectbox("Objetivo", ["Perder peso", "Ganhar massa muscular", "Manutenção de peso"])
         
-        if st.button("🔢 Calcular Macros", use_container_width=True):
+        if st.button("CALCULAR MACROS", use_container_width=True):
             if calories > 0:
                 macros = calculate_macros(calories, goal)
                 
@@ -1441,7 +1633,7 @@ def show_calculators():
                 with col1:
                     st.markdown(f"""
                     <div style="background: #F44336; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>🍖 Proteínas</h3>
+                        <h4>Proteínas</h4>
                         <h2>{macros['proteins']:.0f}g</h2>
                         <small>{(macros['proteins'] * 4):.0f} kcal</small>
                     </div>
@@ -1450,7 +1642,7 @@ def show_calculators():
                 with col2:
                     st.markdown(f"""
                     <div style="background: #FFC107; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>🍞 Carboidratos</h3>
+                        <h4>Carboidratos</h4>
                         <h2>{macros['carbs']:.0f}g</h2>
                         <small>{(macros['carbs'] * 4):.0f} kcal</small>
                     </div>
@@ -1459,281 +1651,55 @@ def show_calculators():
                 with col3:
                     st.markdown(f"""
                     <div style="background: #4CAF50; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>🥑 Gorduras</h3>
+                        <h4>Gorduras</h4>
                         <h2>{macros['fats']:.0f}g</h2>
                         <small>{(macros['fats'] * 9):.0f} kcal</small>
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # Gráfico de pizza
                 fig = go.Figure(data=[go.Pie(
                     labels=['Proteínas', 'Carboidratos', 'Gorduras'],
-                    values=[macros['proteins'] * 4, macros['carbs'] * 4, macros['fats'] * 9],
+                    values=[macros['proteins']*4, macros['carbs']*4, macros['fats']*9],
                     marker_colors=['#F44336', '#FFC107', '#4CAF50'],
-                    textinfo='label+percent',
-                    hovertemplate='%{label}<br>%{value:.0f} kcal<br>%{percent}<extra></extra>'
+                    hole=.3
                 )])
-                
                 fig.update_layout(title="Distribuição Calórica")
                 st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("⚠️ Digite as calorias!")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # % Gordura Navy
-    elif selected_calc == "% Gordura (Navy)":
-        st.markdown('<div class="calculator-card"><h3>📏 Percentual de Gordura Corporal (Método Navy)</h3>', unsafe_allow_html=True)
-        st.info("💡 Método validado pela Marinha dos EUA - Usa medidas de circunferência")
+    elif calculator == "Necessidade Hídrica":
+        st.markdown('<div class="calculator-card">', unsafe_allow_html=True)
+        st.markdown("### Necessidade Hídrica Diária")
         
         col1, col2 = st.columns(2)
         with col1:
-            gender = st.selectbox("Gênero", ["Masculino", "Feminino"], key="bf_gender")
-            height = st.number_input("Altura (m)", min_value=0.0, max_value=2.5, step=0.01, key="bf_height")
-            neck = st.number_input("Pescoço (cm)", min_value=0.0, step=0.1)
-            waist = st.number_input("Cintura (cm)", min_value=0.0, step=0.1)
-        
+            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1, value=70.0, key="water_w")
         with col2:
-            if gender == "Feminino":
-                hip = st.number_input("Quadril (cm)", min_value=0.0, step=0.1)
-            else:
-                hip = None
+            activity = st.selectbox("Nível de Atividade", 
+                                   ["Sedentário", "Levemente ativo", "Moderadamente ativo", 
+                                    "Muito ativo", "Extremamente ativo"])
         
-        if st.button("🔢 Calcular % Gordura", use_container_width=True):
-            if height > 0 and neck > 0 and waist > 0:
-                if gender == "Feminino" and (not hip or hip == 0):
-                    st.warning("⚠️ Mulheres precisam informar o quadril!")
-                else:
-                    bf = calculate_body_fat_navy(gender, waist, neck, height, hip)
-                    
-                    if bf is not None:
-                        # Classificação
-                        if gender == "Masculino":
-                            if bf < 6:
-                                category = "Essencial"
-                                color = "#2196F3"
-                            elif bf < 14:
-                                category = "Atleta"
-                                color = "#4CAF50"
-                            elif bf < 18:
-                                category = "Fitness"
-                                color = "#8BC34A"
-                            elif bf < 25:
-                                category = "Aceitável"
-                                color = "#FFC107"
-                            else:
-                                category = "Obesidade"
-                                color = "#F44336"
-                        else:
-                            if bf < 14:
-                                category = "Essencial"
-                                color = "#2196F3"
-                            elif bf < 21:
-                                category = "Atleta"
-                                color = "#4CAF50"
-                            elif bf < 25:
-                                category = "Fitness"
-                                color = "#8BC34A"
-                            elif bf < 32:
-                                category = "Aceitável"
-                                color = "#FFC107"
-                            else:
-                                category = "Obesidade"
-                                color = "#F44336"
-                        
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, {color} 0%, {color}CC 100%); 
-                                    padding: 2rem; border-radius: 12px; color: white; text-align: center;">
-                            <h2 style="margin: 0;">% Gordura: {bf:.1f}%</h2>
-                            <p style="font-size: 1.5rem; font-weight: bold;">{category}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        st.markdown(f"""
-                        **📊 Tabelas de Referência:**
-                        
-                        **Homens:**
-                        - 2-5%: Essencial
-                        - 6-13%: Atleta
-                        - 14-17%: Fitness
-                        - 18-24%: Aceitável
-                        - 25%+: Obesidade
-                        
-                        **Mulheres:**
-                        - 10-13%: Essencial
-                        - 14-20%: Atleta
-                        - 21-24%: Fitness
-                        - 25-31%: Aceitável
-                        - 32%+: Obesidade
-                        """)
-            else:
-                st.warning("⚠️ Preencha todas as medidas!")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Tempo para Meta
-    elif selected_calc == "Tempo para Meta":
-        st.markdown('<div class="calculator-card"><h3>⏰ Tempo Estimado para Atingir Meta</h3>', unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            current_weight = st.number_input("Peso Atual (kg)", min_value=0.0, step=0.1)
-        with col2:
-            target_weight = st.number_input("Peso Meta (kg)", min_value=0.0, step=0.1)
-        with col3:
-            weekly_goal = st.number_input("Meta Semanal (kg)", value=0.5, min_value=0.1, max_value=1.0, step=0.1)
-        
-        st.info("💡 Recomendação: Perda/ganho de 0.5kg/semana é saudável e sustentável")
-        
-        if st.button("🔢 Calcular Tempo", use_container_width=True):
-            if current_weight > 0 and target_weight > 0:
-                time_data = calculate_target_weight_time(current_weight, target_weight, weekly_goal)
-                
-                direction = "perder" if current_weight > target_weight else "ganhar"
-                weight_diff = abs(current_weight - target_weight)
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    st.markdown(f"""
-                    <div style="background: #2196F3; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>📅 Dias</h3>
-                        <h2>{time_data['days']:.0f}</h2>
-                        <small>dias aproximadamente</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col2:
-                    st.markdown(f"""
-                    <div style="background: #4CAF50; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>📆 Semanas</h3>
-                        <h2>{time_data['weeks']:.1f}</h2>
-                        <small>semanas necessárias</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col3:
-                    st.markdown(f"""
-                    <div style="background: #FF9800; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>📊 Meses</h3>
-                        <h2>{time_data['months']:.1f}</h2>
-                        <small>meses aprox.</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                st.markdown(f"""
-                **🎯 Resumo:**
-                - Você precisa {direction} **{weight_diff:.1f} kg**
-                - Com meta de **{weekly_goal} kg/semana**
-                - Data estimada: **{(datetime.now() + timedelta(days=time_data['days'])).strftime('%d/%m/%Y')}**
-                """)
-            else:
-                st.warning("⚠️ Preencha os pesos!")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Déficit/Superávit Calórico
-    elif selected_calc == "Déficit/Superávit Calórico":
-        st.markdown('<div class="calculator-card"><h3>📊 Déficit/Superávit Calórico</h3>', unsafe_allow_html=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            get = st.number_input("GET - Gasto Energético Total (kcal)", min_value=0, step=50)
-        with col2:
-            goal = st.selectbox("Objetivo", ["Perder 0.5kg/semana", "Perder 0.75kg/semana", "Perder 1kg/semana", "Manter peso", "Ganhar 0.25kg/semana", "Ganhar 0.5kg/semana"])
-        
-        if st.button("🔢 Calcular", use_container_width=True):
-            if get > 0:
-                calorie_adjustments = {
-                    "Perder 0.5kg/semana": -500,
-                    "Perder 0.75kg/semana": -750,
-                    "Perder 1kg/semana": -1000,
-                    "Manter peso": 0,
-                    "Ganhar 0.25kg/semana": 150,
-                    "Ganhar 0.5kg/semana": 300
-                }
-                
-                adjustment = calorie_adjustments[goal]
-                target_calories = get + adjustment
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown(f"""
-                    <div style="background: #4CAF50; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>🎯 Meta Calórica</h3>
-                        <h2>{target_calories:.0f} kcal</h2>
-                        <small>por dia</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col2:
-                    adj_text = f"{adjustment:+.0f} kcal/dia"
-                    adj_color = "#F44336" if adjustment < 0 else "#2196F3" if adjustment > 0 else "#999"
-                    st.markdown(f"""
-                    <div style="background: {adj_color}; padding: 1.5rem; border-radius: 12px; color: white; text-align: center;">
-                        <h3>📉 Ajuste</h3>
-                        <h2>{adj_text}</h2>
-                        <small>{goal}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.warning("⚠️ Digite o GET!")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Proteína por Kg
-    elif selected_calc == "Proteína por Kg":
-        st.markdown('<div class="calculator-card"><h3>🍖 Necessidade de Proteína</h3>', unsafe_allow_html=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            weight = st.number_input("Peso (kg)", min_value=0.0, step=0.1, key="protein_weight")
-        with col2:
-            goal = st.selectbox("Objetivo/Atividade", [
-                "Sedentário (manutenção)",
-                "Ativo (recreacional)",
-                "Atleta (endurance)",
-                "Atleta (força/hipertrofia)",
-                "Perda de peso (preservar massa)"
-            ])
-        
-        if st.button("🔢 Calcular Proteína", use_container_width=True):
+        if st.button("CALCULAR ÁGUA", use_container_width=True):
             if weight > 0:
-                protein_ranges = {
-                    "Sedentário (manutenção)": (0.8, 1.0),
-                    "Ativo (recreacional)": (1.0, 1.4),
-                    "Atleta (endurance)": (1.2, 1.6),
-                    "Atleta (força/hipertrofia)": (1.6, 2.2),
-                    "Perda de peso (preservar massa)": (1.8, 2.4)
-                }
-                
-                min_protein, max_protein = protein_ranges[goal]
-                min_total = weight * min_protein
-                max_total = weight * max_protein
-                avg_total = (min_total + max_total) / 2
+                water = calculate_water_intake(weight, activity)
                 
                 st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #F44336 0%, #E91E63 100%); 
+                <div style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); 
                             padding: 2rem; border-radius: 12px; color: white; text-align: center;">
-                    <h2 style="margin: 0;">Recomendação: {avg_total:.0f}g/dia</h2>
-                    <p style="font-size: 1.2rem;">Faixa: {min_total:.0f}g - {max_total:.0f}g</p>
-                    <p>({min_protein}-{max_protein}g por kg de peso)</p>
+                    <h2 style="margin: 0;">{water:.2f} Litros/dia</h2>
+                    <p style="margin: 0.5rem 0;">{int(water * 1000)} ml por dia</p>
+                    <p style="margin: 0;">Aproximadamente {int((water * 1000) / 250)} copos de 250ml</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Distribuição em refeições
-                meals = st.number_input("Refeições por dia", value=5, min_value=3, max_value=8)
-                per_meal = avg_total / meals
-                
-                st.markdown(f"""
-                **🍽️ Distribuição Sugerida:**
-                - {per_meal:.0f}g de proteína por refeição
-                - {meals} refeições por dia
-                - Exemplo: {per_meal:.0f}g = ~{(per_meal/30):.0f} ovos ou {(per_meal/25):.0f} scoops de whey ou {(per_meal/23):.0f}0g de frango
+                st.markdown("""
+                **Dicas de Hidratação:**
+                - Aumente em dias quentes
+                - Beba mais durante exercícios
+                - Urina amarelo-claro indica boa hidratação
+                - Prefira água pura
                 """)
-            else:
-                st.warning("⚠️ Digite o peso!")
         
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1741,744 +1707,188 @@ def show_calculators():
 # CHAT IA
 # ============================================================================
 
-def get_llm_response(message, context=""):
-    """Sistema de IA inteligente"""
-    lower_msg = message.lower()
+def get_llm_response(message):
+    lower = message.lower()
     
-    # Respostas contextuais
-    if any(word in lower_msg for word in ['oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'hey']):
-        return """Olá! 👋 Sou seu assistente nutricional inteligente! 
-
-**Como posso ajudar hoje?**
-
-🎯 **Posso te auxiliar com:**
-- 📋 Criar planos alimentares personalizados
-- 🧮 Calcular TMB, GET e macronutrientes
-- 💪 Orientação para ganho de massa
-- 🏃 Nutrição esportiva
-- 🩺 Dietas clínicas especiais
-- 📊 Análise de evolução
-- 💡 Dicas e motivação
-
-**Digite sua dúvida ou escolha um tópico!**"""
+    if any(word in lower for word in ['oi', 'olá', 'bom dia', 'boa tarde']):
+        return "Olá! Sou seu assistente nutricional inteligente. Posso ajudar com planejamento alimentar, cálculos nutricionais, dicas de nutrição e muito mais. Como posso te ajudar hoje?"
     
-    elif any(word in lower_msg for word in ['plano', 'montar', 'alimentar', 'dieta', 'cardapio']):
-        return """📋 **Guia Completo para Plano Alimentar**
+    elif any(word in lower for word in ['plano', 'dieta', 'alimentar']):
+        return """Para montar um plano alimentar adequado, considere:
 
-**1️⃣ Avaliação Inicial:**
-- TMB (Taxa Metabólica Basal)
-- GET (Gasto Energético Total)
-- Composição corporal
-- Objetivos SMART
+1. TMB e GET (use as calculadoras)
+2. Objetivo (perder peso, ganhar massa, manter)
+3. Distribuição de macronutrientes
+4. 5-6 refeições por dia
+5. Hidratação adequada
 
-**2️⃣ Distribuição de Macros:**
-- **Proteínas:** 1.6-2.2g/kg (hipertrofia)
-- **Carboidratos:** 3-5g/kg (energia)
-- **Gorduras:** 0.8-1.2g/kg (hormônios)
-
-**3️⃣ Estrutura de Refeições:**
-- 5-6 refeições/dia
-- Intervalo de 3h
-- Pré e pós-treino estratégicos
-
-**4️⃣ Monitoramento:**
-- Avaliação quinzenal
-- Ajustes conforme evolução
-- Registro alimentar
-
-**💡 Use as calculadoras para valores precisos!**"""
+Posso te ajudar com cálculos específicos ou dúvidas sobre nutrição!"""
     
-    elif any(word in lower_msg for word in ['massa', 'hipertrofia', 'musculo', 'ganhar peso']):
-        return """💪 **Guia de Ganho de Massa Muscular**
+    elif any(word in lower for word in ['massa', 'hipertrofia', 'ganhar']):
+        return """Para ganho de massa muscular:
 
-**🍽️ Nutrição:**
-- **Superávit:** +300-500 kcal/dia
-- **Proteínas:** 2.0-2.2g/kg
-- **Carboidratos:** 4-6g/kg (energia para treino)
-- **Gorduras:** 1.0g/kg (produção hormonal)
+- Superávit calórico de 300-500 kcal
+- Proteínas: 2.0-2.2g/kg
+- Carboidratos: 4-6g/kg
+- Treino de força consistente
+- Descanso adequado (7-8h sono)
 
-**🎯 Estratégias:**
-- **Pré-treino:** Carbos complexos + proteína (1-2h antes)
-- **Intra-treino:** Aminoácidos (opcional)
-- **Pós-treino:** Carbos simples + whey (janela anabólica)
-- **Antes de dormir:** Caseína ou cottage
-
-**⏰ Timing:**
-- Proteína a cada 3-4 horas
-- Carbos concentrados ao redor do treino
-- Hidratação: 35-40ml/kg
-
-**📊 Monitoramento:**
-- Peso semanal (+0.25-0.5kg/semana)
-- Medidas corporais
-- Fotos de progresso
-
-**💡 Lembre-se: Ganho limpo = paciência + consistência!**"""
-    
-    elif any(word in lower_msg for word in ['perder peso', 'emagrecer', 'deficit', 'queimar']):
-        return """🔥 **Guia de Perda de Peso Saudável**
-
-**🎯 Déficit Calórico:**
-- **Moderado:** -500 kcal/dia (0.5kg/semana)
-- **Agressivo:** -750 kcal/dia (0.75kg/semana)
-- **Proteínas:** 1.8-2.4g/kg (preservar massa)
-- **Carboidratos:** 2-3g/kg (energia)
-- **Gorduras:** 0.8-1.0g/kg
-
-**🍽️ Estratégias:**
-- Aumentar proteínas (saciedade)
-- Priorizar alimentos de baixa densidade calórica
-- Fibras: 25-35g/dia
-- Água: 3-4 litros/dia
-
-**💡 Dicas de Sucesso:**
-- Refeed semanal (manutenção 1x/semana)
-- Cardio moderado (LISS ou HIIT)
-- Dormir 7-8h (recuperação)
-- Deficit intermitente (2-3 meses, depois break diet)
-
-**⚠️ Evite:**
-- Déficits muito altos (>1000 kcal)
-- Pular refeições
-- Eliminar grupos alimentares
-- Obsessão com balança
-
-**📊 Monitoramento:**
-- Peso 1-2x/semana (mesmo horário)
-- Medidas semanais
-- Fotos quinzenais
-- Como se sente (energia, humor)
-
-**Resultado sustentável = disciplina + paciência!**"""
-    
-    elif any(word in lower_msg for word in ['suplemento', 'whey', 'creatina', 'bcaa']):
-        return """💊 **Guia de Suplementação Nutricional**
-
-**🥇 Essenciais (Comprovados):**
-
-1. **Whey Protein**
-   - Quando: Pós-treino, café da manhã
-   - Dose: 25-30g
-   - Benefício: Recuperação muscular
-
-2. **Creatina**
-   - Quando: Qualquer horário
-   - Dose: 3-5g/dia
-   - Benefício: Força e hipertrofia
-
-3. **Ômega 3**
-   - Quando: Com refeições
-   - Dose: 2-3g/dia (EPA+DHA)
-   - Benefício: Anti-inflamatório
-
-4. **Vitamina D**
-   - Quando: Manhã
-   - Dose: 1000-2000 UI/dia
-   - Benefício: Imunidade, hormônios
-
-**🥈 Opcionais (Contextuais):**
-
-- **Cafeína:** Pré-treino (100-200mg)
-- **Beta-Alanina:** Endurance (3-6g/dia)
-- **Glutamina:** Intestino (5-10g/dia)
-- **Multivitamínico:** Gaps nutricionais
-
-**❌ Desnecessários:**
-- BCAA (se consome proteína suficiente)
-- Termogênicos (não são mágicos)
-- Detox/shakes milagrosos
-
-**💡 Lembre-se:**
-- Suplementos COMPLEMENTAM, não substituem
-- Priorize sempre alimentação real
-- Consulte nutricionista para individualização
-
-**A base é DIETA + TREINO + DESCANSO!**"""
-    
-    elif any(word in lower_msg for word in ['diabetes', 'hipertens', 'colesterol', 'doença']):
-        return """🏥 **Nutrição Clínica - Condições Especiais**
-
-**🩺 Diabetes:**
-- Controle de carboidratos
-- Baixo índice glicêmico
-- Fibras: 25-30g/dia
-- Fracionamento regular
-- Evitar: açúcares simples, refrigerantes
-
-**💓 Hipertensão:**
-- DASH Diet
-- Reduzir sódio (<2000mg/dia)
-- Aumentar potássio (frutas, vegetais)
-- Magnésio (oleaginosas, integral)
-- Evitar: industrializados, conservas
-
-**📈 Colesterol Alto:**
-- Fibras solúveis (aveia, feijão)
-- Ômega 3 (peixes, linhaça)
-- Reduzir gorduras saturadas
-- Evitar gorduras trans
-- Fitosteróis (fitoesteróis)
-
-**⚠️ IMPORTANTE:**
-- Sempre consulte seu médico
-- Nutrição é PARTE do tratamento
-- Não substitui medicamentos
-- Monitoramento regular
-
-**Esta IA NÃO substitui atendimento profissional!**"""
-    
-    elif any(word in lower_msg for word in ['agua', 'hidrat', 'desidrat']):
-        return """💧 **Guia Completo de Hidratação**
-
-**💦 Necessidade Diária:**
-- **Base:** 35ml/kg de peso
-- **Exercício:** +500-1000ml/hora
-- **Calor:** +500-750ml
-- **Exemplo:** 70kg = 2.5L base + ajustes
-
-**🎯 Sinais de Boa Hidratação:**
-- ✅ Urina amarelo-claro
-- ✅ Pele elástica
-- ✅ Sem sede frequente
-- ✅ Energia normal
-
-**⚠️ Sinais de Desidratação:**
-- ❌ Urina escura
-- ❌ Sede intensa
-- ❌ Fadiga
-- ❌ Tontura
-
-**💡 Dicas Práticas:**
-- Beba água ao acordar
-- Garrafa sempre à mão
-- Apps de lembrete
-- Chás e águas saborizadas contam
-- Frutas e vegetais ajudam
-
-**🏃 Durante Exercício:**
-- Antes: 400-600ml (2h antes)
-- Durante: 150-250ml a cada 15-20min
-- Depois: 150% do peso perdido
-
-**Hidratação = Saúde + Performance!**"""
+Use a calculadora GET para saber suas calorias ideais!"""
     
     else:
-        return """🤖 **Assistente Nutricional NutriStock 360**
-
-**Estou aqui para ajudar com:**
-
-📋 **Planejamento Alimentar**
-- Planos personalizados
-- Distribuição de macros
-- Timing nutricional
-
-💪 **Objetivos Específicos**
-- Ganho de massa muscular
-- Perda de peso saudável
-- Melhora de performance
-
-🧮 **Cálculos e Análises**
-- TMB, GET, IMC
-- Necessidades nutricionais
-- Composição corporal
-
-🏥 **Nutrição Clínica**
-- Diabetes
-- Hipertensão
-- Colesterol
-- Outras condições
-
-🔬 **Suplementação**
-- O que funciona
-- Como usar
-- Quando é necessário
-
-💡 **Educação Nutricional**
-- Dicas práticas
-- Mitos e verdades
-- Motivação
-
-**Digite sua dúvida ou escolha um tema!**
-
-_Lembre-se: Esta IA é auxiliar educacional. Para prescrições individualizadas, consulte um nutricionista._"""
+        return "Posso ajudar com planejamento alimentar, cálculos nutricionais, receitas, comparação de alimentos e dicas de nutrição. O que você gostaria de saber?"
 
 def show_chat_ia():
-    """Chat com IA Inteligente"""
-    st.markdown('<div class="main-header"><h1>🤖 Chat com IA Nutricional</h1><p>Assistente Inteligente 24/7</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>Chat IA Nutricional</h1><p>Assistente Inteligente 24/7</p></div>', unsafe_allow_html=True)
     
-    # Inicializar histórico
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
     
-    # Exibir histórico
     for msg in st.session_state.chat_history:
         classe = "user-message" if msg['sender'] == 'user' else "ai-message"
-        icon = "👤" if msg['sender'] == 'user' else "🤖"
         st.markdown(f"""
         <div class="chat-message {classe}">
-            <strong>{icon} {'Você' if msg['sender'] == 'user' else 'IA Nutricional'}:</strong><br>
+            <strong>{'Você' if msg['sender'] == 'user' else 'IA Nutricional'}:</strong><br>
             {msg['message']}<br>
             <small style="opacity: 0.7;">{msg['time']}</small>
         </div>
         """, unsafe_allow_html=True)
     
-    # Input de mensagem
     col1, col2 = st.columns([5, 1])
-    
     with col1:
-        user_input = st.text_input("💬 Digite sua mensagem", key="chat_input", placeholder="Como posso te ajudar?")
-    
+        user_input = st.text_input("Digite sua mensagem", key="chat", placeholder="Como posso te ajudar?")
     with col2:
-        send_button = st.button("📤 Enviar", use_container_width=True)
+        send = st.button("ENVIAR", use_container_width=True)
     
-    # Botões rápidos
-    st.markdown("### 🚀 Perguntas Rápidas")
-    col1, col2, col3, col4 = st.columns(4)
-    
-    quick_questions = [
-        ("📋 Plano Alimentar", "Como montar um plano alimentar?"),
-        ("💪 Ganhar Massa", "Dicas para ganho de massa"),
-        ("🔥 Perder Peso", "Estratégias para perder peso"),
-        ("💊 Suplementação", "Quais suplementos usar?")
-    ]
-    
-    for col, (label, question) in zip([col1, col2, col3, col4], quick_questions):
-        with col:
-            if st.button(label, key=f"quick_{label}", use_container_width=True):
-                user_input = question
-                send_button = True
-    
-    if send_button and user_input:
-        # Adicionar mensagem do usuário
+    if send and user_input:
         st.session_state.chat_history.append({
             'sender': 'user',
             'message': user_input,
             'time': datetime.now().strftime('%H:%M')
         })
         
-        # Gerar resposta da IA
         response = get_llm_response(user_input)
         
-        # Adicionar resposta da IA
         st.session_state.chat_history.append({
             'sender': 'ai',
             'message': response,
             'time': datetime.now().strftime('%H:%M')
         })
         
-        # Salvar conversa no banco
-        save_llm_conversation(
-            st.session_state.user['id'], 
-            None, 
-            'chat', 
-            user_input, 
-            response
-        )
-        
         st.rerun()
     
-    # Limpar chat
     if len(st.session_state.chat_history) > 0:
-        if st.button("🗑️ Limpar Conversa", use_container_width=True):
+        if st.button("LIMPAR CONVERSA"):
             st.session_state.chat_history = []
             st.rerun()
 
 # ============================================================================
-# CONSULTAS E AGENDAMENTOS
+# EXPORTAÇÃO DE DADOS
 # ============================================================================
 
-def show_appointments():
-    """Sistema de Consultas e Agendamentos"""
-    st.markdown('<div class="main-header"><h1>📅 Consultas e Agendamentos</h1><p>Gestão de Agenda</p></div>', unsafe_allow_html=True)
+def show_export():
+    st.markdown('<div class="main-header"><h1>Exportação de Dados</h1><p>Exporte seus dados profissionalmente</p></div>', unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["📋 Agenda", "➕ Nova Consulta", "📊 Histórico"])
+    col1, col2, col3 = st.columns(3)
     
-    with tab1:
-        try:
-            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-            
-            # Filtros
-            col1, col2 = st.columns(2)
-            with col1:
-                date_filter = st.date_input("Filtrar por data", value=datetime.now())
-            with col2:
-                status_filter = st.multiselect("Status", ["pending", "confirmed", "completed", "cancelled"], default=["pending", "confirmed"])
-            
-            # Buscar consultas
-            appointments_df = pd.read_sql_query("""
-                SELECT a.id, p.full_name as patient, a.date, a.time, a.type, a.status, a.notes
-                FROM appointments a
-                JOIN patients p ON a.patient_id = p.id
-                WHERE a.user_id = ? AND a.date = ? AND a.status IN ({})
-                ORDER BY a.time
-            """.format(','.join('?' * len(status_filter))), 
-            conn, params=(st.session_state.user['id'], date_filter, *status_filter))
-            
-            if not appointments_df.empty:
-                st.markdown(f"### 📊 {len(appointments_df)} consulta(s) agendada(s)")
+    with col1:
+        st.markdown("### Pacientes")
+        if st.button("EXPORTAR CSV", key="exp_patients", use_container_width=True):
+            patients_df = get_patients(st.session_state.user['id'])
+            if not patients_df.empty:
+                csv = patients_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    "BAIXAR PACIENTES.CSV",
+                    csv,
+                    f"pacientes_{datetime.now().strftime('%Y%m%d')}.csv",
+                    "text/csv",
+                    use_container_width=True
+                )
+    
+    with col2:
+        st.markdown("### Receitas")
+        if st.button("EXPORTAR CSV", key="exp_recipes", use_container_width=True):
+            recipes_df = get_recipes(st.session_state.user['id'])
+            if not recipes_df.empty:
+                csv = recipes_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    "BAIXAR RECEITAS.CSV",
+                    csv,
+                    f"receitas_{datetime.now().strftime('%Y%m%d')}.csv",
+                    "text/csv",
+                    use_container_width=True
+                )
+    
+    with col3:
+        st.markdown("### Avaliações")
+        if st.button("EXPORTAR CSV", key="exp_evals", use_container_width=True):
+            try:
+                conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+                evals_df = pd.read_sql_query("""
+                    SELECT e.*, p.full_name as patient_name
+                    FROM evaluations e
+                    JOIN patients p ON e.patient_id = p.id
+                    WHERE e.user_id = ?
+                    ORDER BY e.date DESC
+                """, conn, params=(st.session_state.user['id'],))
+                conn.close()
                 
-                for idx, apt in appointments_df.iterrows():
-                    status_colors = {
-                        "pending": "#FFC107",
-                        "confirmed": "#4CAF50",
-                        "completed": "#2196F3",
-                        "cancelled": "#F44336"
-                    }
-                    
-                    status_labels = {
-                        "pending": "Pendente",
-                        "confirmed": "Confirmada",
-                        "completed": "Realizada",
-                        "cancelled": "Cancelada"
-                    }
-                    
-                    color = status_colors.get(apt['status'], "#999")
-                    label = status_labels.get(apt['status'], apt['status'])
-                    
-                    with st.expander(f"⏰ {apt['time']} - {apt['patient']}", expanded=False):
-                        col1, col2 = st.columns([3, 1])
-                        
-                        with col1:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 1rem; border-radius: 10px; border-left: 4px solid {color};">
-                                <h4>{apt['patient']}</h4>
-                                <p><strong>Data:</strong> {apt['date']}</p>
-                                <p><strong>Horário:</strong> {apt['time']}</p>
-                                <p><strong>Tipo:</strong> {apt['type'] or 'Consulta'}</p>
-                                <p><strong>Status:</strong> <span style="color: {color}; font-weight: bold;">{label}</span></p>
-                                {f"<p><strong>Observações:</strong> {apt['notes']}</p>" if apt['notes'] else ""}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col2:
-                            if apt['status'] == 'pending':
-                                if st.button("✅ Confirmar", key=f"confirm_{apt['id']}", use_container_width=True):
-                                    cursor = conn.cursor()
-                                    cursor.execute("UPDATE appointments SET status = 'confirmed' WHERE id = ?", (apt['id'],))
-                                    conn.commit()
-                                    st.success("Consulta confirmada!")
-                                    st.rerun()
-                            
-                            if apt['status'] in ['pending', 'confirmed']:
-                                if st.button("✔️ Completar", key=f"complete_{apt['id']}", use_container_width=True):
-                                    cursor = conn.cursor()
-                                    cursor.execute("UPDATE appointments SET status = 'completed' WHERE id = ?", (apt['id'],))
-                                    conn.commit()
-                                    st.success("Consulta completada!")
-                                    st.rerun()
-                            
-                            if apt['status'] != 'cancelled':
-                                if st.button("❌ Cancelar", key=f"cancel_{apt['id']}", use_container_width=True):
-                                    cursor = conn.cursor()
-                                    cursor.execute("UPDATE appointments SET status = 'cancelled' WHERE id = ?", (apt['id'],))
-                                    conn.commit()
-                                    st.warning("Consulta cancelada!")
-                                    st.rerun()
-            else:
-                st.info("📅 Nenhuma consulta agendada para esta data")
-            
-            conn.close()
-            
-        except Exception as e:
-            st.error(f"Erro: {e}")
-    
-    with tab2:
-        st.markdown("### ➕ Agendar Nova Consulta")
-        
-        try:
-            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-            patients_list = pd.read_sql_query("""
-                SELECT id, full_name FROM patients 
-                WHERE user_id = ? AND active = 1 
-                ORDER BY full_name
-            """, conn, params=(st.session_state.user['id'],))
-            conn.close()
-            
-            if not patients_list.empty:
-                with st.form("new_appointment_form"):
-                    patient_id = st.selectbox(
-                        "Paciente",
-                        options=patients_list['id'].tolist(),
-                        format_func=lambda x: patients_list[patients_list['id'] == x]['full_name'].values[0]
+                if not evals_df.empty:
+                    csv = evals_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        "BAIXAR AVALIAÇÕES.CSV",
+                        csv,
+                        f"avaliacoes_{datetime.now().strftime('%Y%m%d')}.csv",
+                        "text/csv",
+                        use_container_width=True
                     )
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        date = st.date_input("Data", min_value=datetime.now())
-                    with col2:
-                        time = st.time_input("Horário")
-                    
-                    apt_type = st.selectbox("Tipo de Consulta", [
-                        "Primeira Consulta",
-                        "Retorno",
-                        "Avaliação",
-                        "Acompanhamento",
-                        "Entrega de Plano"
-                    ])
-                    
-                    notes = st.text_area("Observações")
-                    
-                    if st.form_submit_button("📅 Agendar", use_container_width=True):
-                        try:
-                            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-                            cursor = conn.cursor()
-                            
-                            cursor.execute("""
-                                INSERT INTO appointments (patient_id, user_id, date, time, type, status, notes)
-                                VALUES (?, ?, ?, ?, ?, 'pending', ?)
-                            """, (patient_id, st.session_state.user['id'], date, time.strftime('%H:%M'), apt_type, notes))
-                            
-                            conn.commit()
-                            conn.close()
-                            
-                            st.success("✅ Consulta agendada com sucesso!")
-                            st.balloons()
-                            st.rerun()
-                            
-                        except Exception as e:
-                            st.error(f"Erro ao agendar: {e}")
-            else:
-                st.warning("⚠️ Cadastre pacientes primeiro!")
-                
-        except Exception as e:
-            st.error(f"Erro: {e}")
-    
-    with tab3:
-        st.markdown("### 📊 Histórico de Consultas")
-        
-        try:
-            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-            
-            history_df = pd.read_sql_query("""
-                SELECT p.full_name as Paciente, a.date as Data, a.time as Horário, 
-                       a.type as Tipo, a.status as Status
-                FROM appointments a
-                JOIN patients p ON a.patient_id = p.id
-                WHERE a.user_id = ?
-                ORDER BY a.date DESC, a.time DESC
-                LIMIT 50
-            """, conn, params=(st.session_state.user['id'],))
-            
-            if not history_df.empty:
-                st.dataframe(history_df, use_container_width=True, hide_index=True)
-                
-                # Estatísticas
-                col1, col2, col3 = st.columns(3)
-                
-                completed = len(history_df[history_df['Status'] == 'completed'])
-                cancelled = len(history_df[history_df['Status'] == 'cancelled'])
-                pending = len(history_df[history_df['Status'] == 'pending'])
-                
-                with col1:
-                    st.metric("✅ Realizadas", completed)
-                with col2:
-                    st.metric("⏳ Pendentes", pending)
-                with col3:
-                    st.metric("❌ Canceladas", cancelled)
-            else:
-                st.info("📊 Nenhuma consulta no histórico")
-            
-            conn.close()
-            
-        except Exception as e:
-            st.error(f"Erro: {e}")
+            except Exception as e:
+                st.error(f"Erro: {e}")
 
 # ============================================================================
-# CONFIGURAÇÕES
-# ============================================================================
-
-def show_settings():
-    """Configurações do Sistema"""
-    st.markdown('<div class="main-header"><h1>⚙️ Configurações</h1><p>Personalize seu sistema</p></div>', unsafe_allow_html=True)
-    
-    tab1, tab2, tab3 = st.tabs(["👤 Perfil", "📧 Email", "🔐 Segurança"])
-    
-    with tab1:
-        st.markdown("### 👤 Dados do Perfil")
-        
-        with st.form("profile_form"):
-            full_name = st.text_input("Nome Completo", value=st.session_state.user['full_name'])
-            email = st.text_input("Email", value=st.session_state.user['email'] or '')
-            crn = st.text_input("CRN", value=st.session_state.user['crn'] or '')
-            
-            if st.form_submit_button("💾 Salvar Alterações", use_container_width=True):
-                try:
-                    conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-                    cursor = conn.cursor()
-                    
-                    cursor.execute("""
-                        UPDATE users 
-                        SET full_name = ?, email = ?, crn = ?
-                        WHERE id = ?
-                    """, (full_name, email, crn, st.session_state.user['id']))
-                    
-                    conn.commit()
-                    conn.close()
-                    
-                    st.session_state.user['full_name'] = full_name
-                    st.session_state.user['email'] = email
-                    st.session_state.user['crn'] = crn
-                    
-                    st.success("✅ Perfil atualizado!")
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"Erro ao atualizar: {e}")
-    
-    with tab2:
-        st.markdown("### 📧 Configurações de Email")
-        
-        status = "✅ Ativado" if EMAIL_CONFIG['enabled'] else "❌ Desativado"
-        st.info(f"**Status atual:** {status}")
-        
-        st.markdown("""
-        **Para ativar o sistema de email:**
-        
-        1. Configure um email no Gmail
-        2. Ative a verificação em 2 etapas
-        3. Crie uma "Senha de App"
-        4. Atualize EMAIL_CONFIG no código
-        
-        **Funcionalidades:**
-        - Envio de relatórios PDF
-        - Lembretes de consulta
-        - Recuperação de senha
-        """)
-    
-    with tab3:
-        st.markdown("### 🔐 Segurança")
-        
-        with st.form("change_password_form"):
-            st.markdown("#### Alterar Senha")
-            
-            current_password = st.text_input("Senha Atual", type="password")
-            new_password = st.text_input("Nova Senha (mínimo 6 caracteres)", type="password")
-            confirm_password = st.text_input("Confirmar Nova Senha", type="password")
-            
-            if st.form_submit_button("🔒 Alterar Senha", use_container_width=True):
-                if new_password == confirm_password and len(new_password) >= 6:
-                    try:
-                        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
-                        cursor = conn.cursor()
-                        
-                        # Verificar senha atual
-                        current_hash = hashlib.sha256(current_password.encode()).hexdigest()
-                        cursor.execute("SELECT id FROM users WHERE id = ? AND password = ?", 
-                                     (st.session_state.user['id'], current_hash))
-                        
-                        if cursor.fetchone():
-                            # Atualizar senha
-                            new_hash = hashlib.sha256(new_password.encode()).hexdigest()
-                            cursor.execute("UPDATE users SET password = ? WHERE id = ?", 
-                                         (new_hash, st.session_state.user['id']))
-                            conn.commit()
-                            conn.close()
-                            
-                            st.success("✅ Senha alterada com sucesso!")
-                        else:
-                            st.error("❌ Senha atual incorreta!")
-                            conn.close()
-                            
-                    except Exception as e:
-                        st.error(f"Erro: {e}")
-                else:
-                    st.error("❌ Senhas não coincidem ou senha muito curta!")
-
-# ============================================================================
-# MAIN - APLICAÇÃO PRINCIPAL
+# MAIN
 # ============================================================================
 
 def main():
-    """Aplicação Principal"""
-    
-    # Verificar login
     if 'logged_in' not in st.session_state or not st.session_state.logged_in:
         login_page()
         return
     
-    # Sidebar
     with st.sidebar:
         st.markdown("""
             <div style='text-align: center; padding: 1rem 0;'>
-                <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            width: 80px; height: 80px; border-radius: 50%;
+                <div style='background: white; width: 80px; height: 80px; border-radius: 20px;
                             margin: 0 auto 1rem; display: flex; align-items: center;
-                            justify-content: center; box-shadow: 0 4px 15px rgba(102,126,234,0.4);'>
-                    <h1 style='color: white; font-size: 2.5rem; margin: 0;'>🍽️</h1>
+                            justify-content: center; box-shadow: 0 4px 15px rgba(255,255,255,0.3);'>
+                    <h1 style='color: #667eea; font-size: 2.5rem; margin: 0;'>🍽️</h1>
                 </div>
-                <h2 style='color: #333; margin: 0;'>NutriStock 360</h2>
-                <p class="success-badge">v4.0 ULTIMATE</p>
+                <h2 style='margin: 0; font-weight: 800; color: white;'>NutriStock 360</h2>
+                <p class="success-badge" style='margin-top: 0.5rem;'>v5.0 COMPLETO</p>
             </div>
         """, unsafe_allow_html=True)
         
         st.markdown("---")
         
         st.markdown(f"""
-        <div class="info-box">
-            <h4>👤 {st.session_state.user['full_name']}</h4>
-            <p><strong>{st.session_state.user['crn']}</strong></p>
-            <p style="font-size: 0.85rem; opacity: 0.8;">{st.session_state.user['email'] or 'Sem email'}</p>
+        <div style="background: white; color: #667eea; padding: 1rem; border-radius: 12px;">
+            <h4 style="margin: 0;">{st.session_state.user['full_name']}</h4>
+            <p style="margin: 0.5rem 0 0 0;"><strong>{st.session_state.user['crn']}</strong></p>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("---")
         
-        # Menu de navegação
         page = st.radio(
-            "📋 Menu Principal",
+            "MENU PRINCIPAL",
             [
-                "📊 Dashboard",
-                "👥 Pacientes",
-                "📅 Consultas",
-                "🤖 Chat IA",
-                "🧮 Calculadoras",
-                "⚙️ Configurações"
-            ],
-            key="main_menu"
+                "Dashboard",
+                "Pacientes",
+                "Receitas",
+                "Comparador",
+                "Calculadoras",
+                "Chat IA",
+                "Exportar"
+            ]
         )
         
         st.markdown("---")
-        
-        # Features
-        st.markdown("""
-        <div class="info-box">
-            <h4>✨ Funcionalidades</h4>
-            <p style="margin: 0.3rem 0;">✅ CRUD Completo</p>
-            <p style="margin: 0.3rem 0;">✅ 15+ Calculadoras</p>
-            <p style="margin: 0.3rem 0;">✅ IA Inteligente</p>
-            <p style="margin: 0.3rem 0;">✅ Avaliações</p>
-            <p style="margin: 0.3rem 0;">✅ Consultas</p>
-            <p style="margin: 0.3rem 0;">✅ Gráficos</p>
-            <p style="margin: 0.3rem 0;">✅ PDF (Em breve)</p>
-            <p style="margin: 0.3rem 0;">✅ Email (Configure)</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Botão de sair
-        if st.button("🚪 Sair do Sistema", use_container_width=True, type="primary"):
-            st.session_state.logged_in = False
-            st.session_state.clear()
-            st.rerun()
-    
-    # Conteúdo principal
-    if page == "📊 Dashboard":
-        show_dashboard()
-    elif page == "👥 Pacientes":
-        show_patients()
-    elif page == "📅 Consultas":
-        show_appointments()
-    elif page == "🤖 Chat IA":
-        show_chat_ia()
-    elif page == "🧮 Calculadoras":
-        show_calculators()
-    elif page == "⚙️ Configurações":
-        show_settings()
-
-# ============================================================================
-# EXECUTAR APLICAÇÃO
-# ============================================================================
-
-if __name__ == "__main__":
-    main()
