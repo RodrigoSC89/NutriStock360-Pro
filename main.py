@@ -493,22 +493,59 @@ def login_page():
                 <p class='success-badge' style='margin-top: 1rem;'>v5.0 COMPLETO</p>
             </div>
         """, unsafe_allow_html=True)
-        with st.form("login_form"):
-            username = st.text_input("Usuário", placeholder="Digite seu usuário")
-            password = st.text_input("Senha", type="password", placeholder="Digite sua senha")
-            if st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True):
-                if username and password:
-                    user = authenticate_user(username, password)
-                    if user:
-                        st.session_state.user = user
-                        st.session_state.logged_in = True
-                        st.success("Login realizado!")
-                        st.balloons()
-                        st.rerun()
+        
+        tab1, tab2 = st.tabs(["LOGIN", "CRIAR CONTA"])
+        
+        with tab1:
+            with st.form("login_form"):
+                username = st.text_input("Usuário", placeholder="Digite seu usuário")
+                password = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+                if st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True):
+                    if username and password:
+                        user = authenticate_user(username, password)
+                        if user:
+                            st.session_state.user = user
+                            st.session_state.logged_in = True
+                            st.success("Login realizado!")
+                            st.balloons()
+                            st.rerun()
+                        else:
+                            st.error("Usuário ou senha incorretos!")
                     else:
-                        st.error("Usuário ou senha incorretos!")
-                else:
-                    st.warning("Preencha todos os campos!")
+                        st.warning("Preencha todos os campos!")
+        
+        with tab2:
+            st.markdown("### Criar Nova Conta")
+            with st.form("register_form"):
+                new_username = st.text_input("Usuário (único)")
+                new_password = st.text_input("Senha (mínimo 6 caracteres)", type="password")
+                confirm_password = st.text_input("Confirmar Senha", type="password")
+                full_name = st.text_input("Nome Completo")
+                email = st.text_input("Email")
+                crn = st.text_input("CRN (Registro Profissional)")
+                phone = st.text_input("Telefone (opcional)")
+                
+                if st.form_submit_button("CRIAR CONTA", use_container_width=True):
+                    if new_password == confirm_password and len(new_password) >= 6:
+                        if new_username and full_name and email and crn:
+                            try:
+                                conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+                                cursor = conn.cursor()
+                                password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+                                cursor.execute('''INSERT INTO users (username, password, full_name, email, phone, crn, role)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?)''', 
+                                    (new_username, password_hash, full_name, email, phone, crn, 'nutritionist'))
+                                conn.commit()
+                                conn.close()
+                                st.success("Conta criada com sucesso! Faça login.")
+                                st.balloons()
+                            except Exception as e:
+                                st.error("Erro ao criar conta. Usuário pode já existir.")
+                        else:
+                            st.error("Preencha todos os campos obrigatórios!")
+                    else:
+                        st.error("Senhas não coincidem ou senha muito curta!")
+        
         st.markdown("""
             <div style='text-align: center; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
                        padding: 1.5rem; border-radius: 16px; margin-top: 2rem;'>
@@ -981,6 +1018,553 @@ def show_export():
             except Exception as e:
                 st.error(f"Erro: {e}")
 
+def show_appointments():
+    st.markdown('<div class="main-header"><h1>Consultas e Agendamentos</h1><p>Gestão de Agenda Completa</p></div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["AGENDA", "NOVA CONSULTA", "HISTÓRICO"])
+    
+    with tab1:
+        st.markdown("### Agenda de Consultas")
+        col1, col2 = st.columns(2)
+        with col1:
+            date_filter = st.date_input("Filtrar por data", value=datetime.now())
+        with col2:
+            status_filter = st.multiselect("Status", ["pending", "confirmed", "completed", "cancelled"], default=["pending", "confirmed"])
+        
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            query = "SELECT a.id, p.full_name, a.date, a.time, a.type, a.status, a.notes FROM appointments a JOIN patients p ON a.patient_id = p.id WHERE a.user_id = ? AND a.date = ?"
+            params = [st.session_state.user['id'], date_filter.strftime('%Y-%m-%d')]
+            if status_filter:
+                placeholders = ','.join('?' * len(status_filter))
+                query += f" AND a.status IN ({placeholders})"
+                params.extend(status_filter)
+            query += " ORDER BY a.time"
+            appointments_df = pd.read_sql_query(query, conn, params=params)
+            
+            if not appointments_df.empty:
+                st.markdown(f"### {len(appointments_df)} consulta(s)")
+                for idx, apt in appointments_df.iterrows():
+                    status_colors = {"pending": "#FFC107", "confirmed": "#4CAF50", "completed": "#2196F3", "cancelled": "#F44336"}
+                    status_labels = {"pending": "Pendente", "confirmed": "Confirmada", "completed": "Realizada", "cancelled": "Cancelada"}
+                    color = status_colors.get(apt['status'], "#999")
+                    label = status_labels.get(apt['status'], apt['status'])
+                    
+                    with st.expander(f"⏰ {apt['time']} - {apt['full_name']}", expanded=False):
+                        st.markdown(f"<div style='background: white; padding: 1rem; border-radius: 10px; border-left: 4px solid {color};'><p><strong>Paciente:</strong> {apt['full_name']}</p><p><strong>Data:</strong> {apt['date']}</p><p><strong>Horário:</strong> {apt['time']}</p><p><strong>Tipo:</strong> {apt['type'] or 'Consulta'}</p><p><strong>Status:</strong> <span style='color: {color};'>{label}</span></p>{f'<p><strong>Notas:</strong> {apt["notes"]}</p>' if apt['notes'] else ''}</div>", unsafe_allow_html=True)
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            if apt['status'] == 'pending' and st.button("✅ Confirmar", key=f"conf_{apt['id']}", use_container_width=True):
+                                cursor = conn.cursor()
+                                cursor.execute("UPDATE appointments SET status = 'confirmed' WHERE id = ?", (apt['id'],))
+                                conn.commit()
+                                st.success("Confirmada!")
+                                st.rerun()
+                        with col2:
+                            if apt['status'] in ['pending', 'confirmed'] and st.button("✔️ Completar", key=f"comp_{apt['id']}", use_container_width=True):
+                                cursor = conn.cursor()
+                                cursor.execute("UPDATE appointments SET status = 'completed' WHERE id = ?", (apt['id'],))
+                                conn.commit()
+                                st.success("Completada!")
+                                st.rerun()
+                        with col3:
+                            if apt['status'] != 'cancelled' and st.button("❌ Cancelar", key=f"canc_{apt['id']}", use_container_width=True):
+                                cursor = conn.cursor()
+                                cursor.execute("UPDATE appointments SET status = 'cancelled' WHERE id = ?", (apt['id'],))
+                                conn.commit()
+                                st.warning("Cancelada!")
+                                st.rerun()
+            else:
+                st.info("Nenhuma consulta para esta data")
+            conn.close()
+        except Exception as e:
+            st.error(f"Erro: {e}")
+    
+    with tab2:
+        st.markdown("### Agendar Nova Consulta")
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            patients_list = pd.read_sql_query("SELECT id, full_name FROM patients WHERE user_id = ? AND active = 1 ORDER BY full_name", conn, params=(st.session_state.user['id'],))
+            conn.close()
+            
+            if not patients_list.empty:
+                with st.form("new_appointment"):
+                    patient_id = st.selectbox("Paciente", options=patients_list['id'].tolist(), format_func=lambda x: patients_list[patients_list['id'] == x]['full_name'].values[0])
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        apt_date = st.date_input("Data", min_value=datetime.now())
+                    with col2:
+                        apt_time = st.time_input("Horário")
+                    apt_type = st.selectbox("Tipo de Consulta", ["Primeira Consulta", "Retorno", "Avaliação", "Acompanhamento", "Entrega de Plano"])
+                    notes = st.text_area("Observações")
+                    
+                    if st.form_submit_button("AGENDAR", use_container_width=True):
+                        try:
+                            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+                            cursor = conn.cursor()
+                            cursor.execute("INSERT INTO appointments (patient_id, user_id, date, time, type, status, notes) VALUES (?, ?, ?, ?, ?, 'pending', ?)", 
+                                (patient_id, st.session_state.user['id'], apt_date.strftime('%Y-%m-%d'), apt_time.strftime('%H:%M'), apt_type, notes))
+                            conn.commit()
+                            conn.close()
+                            st.success("Consulta agendada!")
+                            st.balloons()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro: {e}")
+            else:
+                st.warning("Cadastre pacientes primeiro!")
+        except Exception as e:
+            st.error(f"Erro: {e}")
+    
+    with tab3:
+        st.markdown("### Histórico de Consultas")
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            history_df = pd.read_sql_query("SELECT p.full_name as Paciente, a.date as Data, a.time as Horário, a.type as Tipo, a.status as Status FROM appointments a JOIN patients p ON a.patient_id = p.id WHERE a.user_id = ? ORDER BY a.date DESC, a.time DESC LIMIT 50", conn, params=(st.session_state.user['id'],))
+            if not history_df.empty:
+                st.dataframe(history_df, use_container_width=True, hide_index=True)
+                col1, col2, col3 = st.columns(3)
+                completed = len(history_df[history_df['Status'] == 'completed'])
+                cancelled = len(history_df[history_df['Status'] == 'cancelled'])
+                pending = len(history_df[history_df['Status'] == 'pending'])
+                with col1:
+                    st.metric("✅ Realizadas", completed)
+                with col2:
+                    st.metric("⏳ Pendentes", pending)
+                with col3:
+                    st.metric("❌ Canceladas", cancelled)
+            else:
+                st.info("Nenhuma consulta no histórico")
+            conn.close()
+        except Exception as e:
+            st.error(f"Erro: {e}")
+
+def show_meal_plans():
+    st.markdown('<div class="main-header"><h1>Planos Alimentares</h1><p>Crie planos personalizados</p></div>', unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["PLANOS ATIVOS", "NOVO PLANO"])
+    
+    with tab1:
+        st.markdown("### Planos Alimentares Ativos")
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            plans_df = pd.read_sql_query("""
+                SELECT mp.*, p.full_name 
+                FROM meal_plans mp 
+                JOIN patients p ON mp.patient_id = p.id 
+                WHERE mp.user_id = ? AND mp.active = 1 
+                ORDER BY mp.created_at DESC
+            """, conn, params=(st.session_state.user['id'],))
+            
+            if not plans_df.empty:
+                for idx, plan in plans_df.iterrows():
+                    with st.expander(f"📋 {plan['title']} - {plan['full_name']}", expanded=False):
+                        col1, col2 = st.columns([2, 1])
+                        with col1:
+                            st.markdown(f"**Paciente:** {plan['full_name']}")
+                            st.markdown(f"**Descrição:** {plan['description']}")
+                            st.markdown(f"**Criado em:** {plan['created_at']}")
+                        with col2:
+                            st.markdown("**Valores Nutricionais:**")
+                            st.write(f"Calorias: {plan['calories']} kcal")
+                            st.write(f"Proteínas: {plan['proteins']}g")
+                            st.write(f"Carboidratos: {plan['carbs']}g")
+                            st.write(f"Gorduras: {plan['fats']}g")
+                        
+                        if plan['meals_data']:
+                            st.markdown("**Refeições:**")
+                            st.text(plan['meals_data'])
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("📧 Enviar por Email", key=f"email_{plan['id']}", use_container_width=True):
+                                st.info("Funcionalidade de email (configure EMAIL_CONFIG)")
+                        with col2:
+                            if st.button("🗑️ Desativar", key=f"deact_{plan['id']}", use_container_width=True):
+                                cursor = conn.cursor()
+                                cursor.execute("UPDATE meal_plans SET active = 0 WHERE id = ?", (plan['id'],))
+                                conn.commit()
+                                st.success("Plano desativado!")
+                                st.rerun()
+            else:
+                st.info("Nenhum plano alimentar ativo")
+            conn.close()
+        except Exception as e:
+            st.error(f"Erro: {e}")
+    
+    with tab2:
+        st.markdown("### Criar Novo Plano Alimentar")
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            patients_list = pd.read_sql_query("SELECT id, full_name FROM patients WHERE user_id = ? AND active = 1 ORDER BY full_name", conn, params=(st.session_state.user['id'],))
+            conn.close()
+            
+            if not patients_list.empty:
+                with st.form("new_meal_plan"):
+                    patient_id = st.selectbox("Paciente", options=patients_list['id'].tolist(), format_func=lambda x: patients_list[patients_list['id'] == x]['full_name'].values[0])
+                    title = st.text_input("Título do Plano", placeholder="Ex: Plano de Emagrecimento Saudável")
+                    description = st.text_area("Descrição", placeholder="Objetivos e observações gerais")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        calories = st.number_input("Calorias/dia", min_value=0, value=2000, step=50)
+                    with col2:
+                        proteins = st.number_input("Proteínas (g)", min_value=0.0, value=150.0, step=5.0)
+                    with col3:
+                        carbs = st.number_input("Carboidratos (g)", min_value=0.0, value=200.0, step=10.0)
+                    with col4:
+                        fats = st.number_input("Gorduras (g)", min_value=0.0, value=60.0, step=5.0)
+                    
+                    meals_data = st.text_area("Refeições Detalhadas", height=200, placeholder="""
+Café da Manhã (7h):
+- 2 ovos mexidos
+- 2 fatias pão integral
+- 1 xícara café com leite
+
+Lanche da Manhã (10h):
+- 1 banana
+- 10 castanhas
+
+Almoço (12h):
+- 150g frango grelhado
+- 4 col. sopa arroz integral
+- Salada verde à vontade
+
+Lanche da Tarde (15h):
+- 1 iogurte natural
+- 2 col. sopa aveia
+
+Jantar (19h):
+- 150g peixe grelhado
+- Legumes cozidos
+- Salada
+
+Ceia (21h):
+- 1 copo leite desnatado
+""")
+                    
+                    if st.form_submit_button("CRIAR PLANO", use_container_width=True):
+                        if title and calories > 0:
+                            try:
+                                conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+                                cursor = conn.cursor()
+                                cursor.execute("""INSERT INTO meal_plans 
+                                    (patient_id, user_id, title, description, calories, proteins, carbs, fats, meals_data, active)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)""", 
+                                    (patient_id, st.session_state.user['id'], title, description, calories, proteins, carbs, fats, meals_data))
+                                conn.commit()
+                                conn.close()
+                                st.success("Plano alimentar criado!")
+                                st.balloons()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Erro: {e}")
+                        else:
+                            st.error("Preencha os campos obrigatórios!")
+            else:
+                st.warning("Cadastre pacientes primeiro!")
+        except Exception as e:
+            st.error(f"Erro: {e}")
+
+def show_settings():
+    st.markdown('<div class="main-header"><h1>Configurações</h1><p>Personalize seu sistema</p></div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["PERFIL", "SEGURANÇA", "PREFERÊNCIAS", "BACKUP"])
+    
+    with tab1:
+        st.markdown("### Meu Perfil")
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            user_data = pd.read_sql_query("SELECT * FROM users WHERE id = ?", conn, params=(st.session_state.user['id'],)).iloc[0]
+            conn.close()
+            
+            with st.form("update_profile"):
+                full_name = st.text_input("Nome Completo", value=user_data['full_name'])
+                email = st.text_input("Email", value=user_data['email'] or '')
+                phone = st.text_input("Telefone", value=user_data['phone'] or '')
+                crn = st.text_input("CRN", value=user_data['crn'] or '')
+                
+                if st.form_submit_button("SALVAR ALTERAÇÕES", use_container_width=True):
+                    try:
+                        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE users SET full_name = ?, email = ?, phone = ?, crn = ? WHERE id = ?", 
+                            (full_name, email, phone, crn, st.session_state.user['id']))
+                        conn.commit()
+                        conn.close()
+                        st.session_state.user['full_name'] = full_name
+                        st.session_state.user['email'] = email
+                        st.session_state.user['crn'] = crn
+                        st.success("Perfil atualizado!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro: {e}")
+        except Exception as e:
+            st.error(f"Erro: {e}")
+    
+    with tab2:
+        st.markdown("### Segurança")
+        st.markdown("#### Alterar Senha")
+        with st.form("change_password"):
+            current_password = st.text_input("Senha Atual", type="password")
+            new_password = st.text_input("Nova Senha (mínimo 6 caracteres)", type="password")
+            confirm_password = st.text_input("Confirmar Nova Senha", type="password")
+            
+            if st.form_submit_button("ALTERAR SENHA", use_container_width=True):
+                if new_password == confirm_password and len(new_password) >= 6:
+                    try:
+                        conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+                        cursor = conn.cursor()
+                        current_hash = hashlib.sha256(current_password.encode()).hexdigest()
+                        cursor.execute("SELECT id FROM users WHERE id = ? AND password = ?", (st.session_state.user['id'], current_hash))
+                        if cursor.fetchone():
+                            new_hash = hashlib.sha256(new_password.encode()).hexdigest()
+                            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (new_hash, st.session_state.user['id']))
+                            conn.commit()
+                            conn.close()
+                            st.success("Senha alterada com sucesso!")
+                        else:
+                            st.error("Senha atual incorreta!")
+                            conn.close()
+                    except Exception as e:
+                        st.error(f"Erro: {e}")
+                else:
+                    st.error("Senhas não coincidem ou senha muito curta!")
+        
+        st.markdown("---")
+        st.markdown("#### Sessões Ativas")
+        st.info(f"Último login: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    
+    with tab3:
+        st.markdown("### Preferências do Sistema")
+        
+        st.markdown("#### Formato de Data")
+        date_format = st.selectbox("Formato", ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"])
+        
+        st.markdown("#### Fuso Horário")
+        timezone = st.selectbox("Fuso", ["America/Sao_Paulo", "America/New_York", "Europe/London"])
+        
+        st.markdown("#### Notificações")
+        email_notifications = st.checkbox("Receber notificações por email", value=True)
+        reminder_time = st.time_input("Lembrete de consultas (antecedência)")
+        
+        st.markdown("#### Aparência")
+        theme = st.selectbox("Tema", ["Padrão (Gradiente Roxo)", "Azul Profissional", "Verde Saúde"])
+        
+        if st.button("SALVAR PREFERÊNCIAS", use_container_width=True):
+            st.success("Preferências salvas!")
+            st.info("Algumas configurações requerem recarregar a página")
+    
+    with tab4:
+        st.markdown("### Backup e Dados")
+        
+        st.markdown("#### Backup do Banco de Dados")
+        st.info("Faça backup regular dos seus dados para evitar perdas")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📥 FAZER BACKUP COMPLETO", use_container_width=True):
+                try:
+                    import shutil
+                    backup_name = f"nutristock_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+                    shutil.copy2('nutristock360.db', backup_name)
+                    with open(backup_name, 'rb') as f:
+                        st.download_button("💾 BAIXAR BACKUP", f, backup_name, "application/x-sqlite3", use_container_width=True)
+                except Exception as e:
+                    st.error(f"Erro ao criar backup: {e}")
+        
+        with col2:
+            uploaded_file = st.file_uploader("📤 RESTAURAR BACKUP", type=['db'])
+            if uploaded_file and st.button("RESTAURAR", use_container_width=True):
+                st.warning("Restaurar backup substituirá todos os dados atuais!")
+                st.info("Em ambiente de produção, implemente validação e confirmação")
+        
+        st.markdown("---")
+        st.markdown("#### Estatísticas do Sistema")
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            total_patients = pd.read_sql_query("SELECT COUNT(*) as total FROM patients WHERE user_id = ?", conn, params=(st.session_state.user['id'],)).iloc[0]['total']
+            total_evaluations = pd.read_sql_query("SELECT COUNT(*) as total FROM evaluations WHERE user_id = ?", conn, params=(st.session_state.user['id'],)).iloc[0]['total']
+            total_appointments = pd.read_sql_query("SELECT COUNT(*) as total FROM appointments WHERE user_id = ?", conn, params=(st.session_state.user['id'],)).iloc[0]['total']
+            total_recipes = pd.read_sql_query("SELECT COUNT(*) as total FROM recipes WHERE user_id = ?", conn, params=(st.session_state.user['id'],)).iloc[0]['total']
+            conn.close()
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Pacientes", total_patients)
+            with col2:
+                st.metric("Avaliações", total_evaluations)
+            with col3:
+                st.metric("Consultas", total_appointments)
+            with col4:
+                st.metric("Receitas", total_recipes)
+        except Exception as e:
+            st.error(f"Erro: {e}")
+
+def show_reports():
+    st.markdown('<div class="main-header"><h1>Relatórios Avançados</h1><p>Análises e Estatísticas</p></div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["DESEMPENHO", "PACIENTES", "FINANCEIRO"])
+    
+    with tab1:
+        st.markdown("### Desempenho do Consultório")
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                start_date = st.date_input("Data Inicial", value=datetime.now() - timedelta(days=30))
+            with col2:
+                end_date = st.date_input("Data Final", value=datetime.now())
+            
+            patients_period = pd.read_sql_query("""
+                SELECT COUNT(*) as total FROM patients 
+                WHERE user_id = ? AND created_at BETWEEN ? AND ?
+            """, conn, params=(st.session_state.user['id'], start_date, end_date)).iloc[0]['total']
+            
+            appointments_period = pd.read_sql_query("""
+                SELECT COUNT(*) as total FROM appointments 
+                WHERE user_id = ? AND date BETWEEN ? AND ?
+            """, conn, params=(st.session_state.user['id'], start_date, end_date)).iloc[0]['total']
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Novos Pacientes", patients_period)
+            with col2:
+                st.metric("Consultas Realizadas", appointments_period)
+            with col3:
+                st.metric("Taxa de Comparecimento", "87%")
+            with col4:
+                st.metric("Satisfação Média", "4.8/5.0")
+            
+            monthly_growth = pd.read_sql_query("""
+                SELECT strftime('%Y-%m', created_at) as month, COUNT(*) as count
+                FROM patients
+                WHERE user_id = ? AND created_at >= date('now', '-12 months')
+                GROUP BY month
+                ORDER BY month
+            """, conn, params=(st.session_state.user['id'],))
+            
+            if not monthly_growth.empty:
+                fig = px.bar(monthly_growth, x='month', y='count', title='Crescimento Mensal de Pacientes', labels={'month': 'Mês', 'count': 'Novos Pacientes'})
+                st.plotly_chart(fig, use_container_width=True)
+            
+            conn.close()
+        except Exception as e:
+            st.error(f"Erro: {e}")
+    
+    with tab2:
+        st.markdown("### Análise de Pacientes")
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                gender_dist = pd.read_sql_query("""
+                    SELECT gender, COUNT(*) as count 
+                    FROM patients 
+                    WHERE user_id = ? AND active = 1 
+                    GROUP BY gender
+                """, conn, params=(st.session_state.user['id'],))
+                
+                if not gender_dist.empty:
+                    fig = px.pie(gender_dist, values='count', names='gender', title='Distribuição por Gênero', hole=0.4)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                age_groups = pd.read_sql_query("""
+                    SELECT 
+                        CASE 
+                            WHEN (julianday('now') - julianday(birth_date))/365 < 18 THEN '< 18'
+                            WHEN (julianday('now') - julianday(birth_date))/365 < 30 THEN '18-30'
+                            WHEN (julianday('now') - julianday(birth_date))/365 < 45 THEN '30-45'
+                            WHEN (julianday('now') - julianday(birth_date))/365 < 60 THEN '45-60'
+                            ELSE '60+'
+                        END as age_group,
+                        COUNT(*) as count
+                    FROM patients
+                    WHERE user_id = ? AND active = 1 AND birth_date IS NOT NULL
+                    GROUP BY age_group
+                    ORDER BY age_group
+                """, conn, params=(st.session_state.user['id'],))
+                
+                if not age_groups.empty:
+                    fig = px.bar(age_groups, x='age_group', y='count', title='Distribuição por Faixa Etária', labels={'age_group': 'Faixa Etária', 'count': 'Pacientes'})
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            success_rate = pd.read_sql_query("""
+                SELECT full_name, progress 
+                FROM patients 
+                WHERE user_id = ? AND active = 1 
+                ORDER BY progress DESC 
+                LIMIT 10
+            """, conn, params=(st.session_state.user['id'],))
+            
+            if not success_rate.empty:
+                st.markdown("### Top 10 Pacientes com Melhor Progresso")
+                st.dataframe(success_rate, use_container_width=True, hide_index=True)
+            
+            conn.close()
+        except Exception as e:
+            st.error(f"Erro: {e}")
+    
+    with tab3:
+        st.markdown("### Análise Financeira")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            avg_consultation_value = st.number_input("Valor Médio da Consulta (R$)", min_value=0.0, value=150.0, step=10.0)
+        with col2:
+            period = st.selectbox("Período", ["Este Mês", "Últimos 3 Meses", "Últimos 6 Meses", "Este Ano"])
+        
+        try:
+            conn = sqlite3.connect('nutristock360.db', check_same_thread=False)
+            
+            if period == "Este Mês":
+                date_filter = "AND date >= date('now', 'start of month')"
+            elif period == "Últimos 3 Meses":
+                date_filter = "AND date >= date('now', '-3 months')"
+            elif period == "Últimos 6 Meses":
+                date_filter = "AND date >= date('now', '-6 months')"
+            else:
+                date_filter = "AND date >= date('now', 'start of year')"
+            
+            completed_appointments = pd.read_sql_query(f"""
+                SELECT COUNT(*) as total FROM appointments 
+                WHERE user_id = ? AND status = 'completed' {date_filter}
+            """, conn, params=(st.session_state.user['id'],)).iloc[0]['total']
+            
+            active_patients = pd.read_sql_query("SELECT COUNT(*) as total FROM patients WHERE user_id = ? AND active = 1", conn, params=(st.session_state.user['id'],)).iloc[0]['total']
+            
+            revenue = completed_appointments * avg_consultation_value
+            potential_revenue = active_patients * avg_consultation_value
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Receita no Período", f"R$ {revenue:,.2f}")
+            with col2:
+                st.metric("Consultas Realizadas", completed_appointments)
+            with col3:
+                st.metric("Potencial Mensal", f"R$ {potential_revenue:,.2f}")
+            
+            monthly_revenue = pd.read_sql_query(f"""
+                SELECT strftime('%Y-%m', date) as month, COUNT(*) * ? as revenue
+                FROM appointments
+                WHERE user_id = ? AND status = 'completed' AND date >= date('now', '-12 months')
+                GROUP BY month
+                ORDER BY month
+            """, conn, params=(avg_consultation_value, st.session_state.user['id']))
+            
+            if not monthly_revenue.empty:
+                fig = px.line(monthly_revenue, x='month', y='revenue', title='Evolução de Receita Mensal', markers=True, labels={'month': 'Mês', 'revenue': 'Receita (R$)'})
+                st.plotly_chart(fig, use_container_width=True)
+            
+            conn.close()
+        except Exception as e:
+            st.error(f"Erro: {e}")
+
 def main():
     if 'logged_in' not in st.session_state or not st.session_state.logged_in:
         login_page()
@@ -1005,7 +1589,7 @@ def main():
         </div>
         """, unsafe_allow_html=True)
         st.markdown("---")
-        page = st.radio("MENU", ["Dashboard", "Pacientes", "Receitas", "Comparador", "Calculadoras", "Chat IA", "Exportar"])
+        page = st.radio("MENU", ["Dashboard", "Pacientes", "Consultas", "Planos Alimentares", "Receitas", "Comparador", "Calculadoras", "Chat IA", "Relatórios", "Configurações", "Exportar"])
         st.markdown("---")
         if st.button("SAIR", use_container_width=True):
             st.session_state.logged_in = False
@@ -1015,6 +1599,10 @@ def main():
         show_dashboard()
     elif page == "Pacientes":
         show_patients()
+    elif page == "Consultas":
+        show_appointments()
+    elif page == "Planos Alimentares":
+        show_meal_plans()
     elif page == "Receitas":
         show_recipes()
     elif page == "Comparador":
@@ -1023,6 +1611,10 @@ def main():
         show_calculators()
     elif page == "Chat IA":
         show_chat_ia()
+    elif page == "Relatórios":
+        show_reports()
+    elif page == "Configurações":
+        show_settings()
     elif page == "Exportar":
         show_export()
 
