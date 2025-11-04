@@ -4,6 +4,7 @@ Sistema profissional para gestão de consultório nutricional com autenticação
 
 ## 🚀 Acesso Rápido
 
+- ⚡ **[Quick Start Guide](QUICKSTART.md)** - Comece a usar em 5 minutos
 - 📋 **[Informações de Acesso e Cronograma](ACESSO.md)** - Como acessar o sistema e timeline
 - 🗺️ **[Roadmap e Planejamento](ROADMAP.md)** - Funcionalidades e próximas etapas
 - 📖 **[Guia de Deploy](guia)** - Instruções completas para deploy no Railway
@@ -127,8 +128,10 @@ Consulte o [guia completo de deploy](guia) para instruções passo a passo.
 
 ## Documentação
 
+- ⚡ **[QUICKSTART.md](QUICKSTART.md)**: Guia rápido para começar em 5 minutos
 - 📋 **[ACESSO.md](ACESSO.md)**: Informações completas sobre como acessar o sistema, ambientes disponíveis, cronograma e módulos
 - 🗺️ **[ROADMAP.md](ROADMAP.md)**: Planejamento de desenvolvimento, funcionalidades implementadas e futuras
+- ❓ **[FAQ.md](FAQ.md)**: Perguntas frequentes e respostas
 - 📖 **[guia](guia)**: Instruções detalhadas para deploy no Railway
 
 ## Suporte e Contribuições

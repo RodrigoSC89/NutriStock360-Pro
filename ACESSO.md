@@ -1,4 +1,6 @@
-# 🚀 Acesso ao Sistema NutriStock360-Pro
+## 🚀 Acesso ao Sistema NutriStock360-Pro
+
+> 💡 **Quer começar rapidamente?** Veja o [Quick Start Guide](QUICKSTART.md) para estar usando o sistema em 5 minutos!
 
 ## 📋 Informações de Acesso
 
