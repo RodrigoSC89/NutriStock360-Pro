@@ -238,10 +238,12 @@ O sistema já vem com dados de demonstração incluindo:
 ## 🔐 Segurança e Privacidade
 
 - ✅ Sistema com autenticação obrigatória
-- ✅ Senhas criptografadas (SHA-256)
+- ✅ Senhas criptografadas (hash SHA-256)*
 - ✅ Dados isolados por usuário (multiusuário)
 - ✅ Sessões seguras
 - ✅ Nenhum dado compartilhado entre nutricionistas
+
+**Nota de Segurança**: O hash SHA-256 é adequado para demonstração e uso básico. Para ambientes de produção com dados médicos sensíveis, recomenda-se atualizar para algoritmos mais robustos como bcrypt, scrypt ou Argon2. Esta melhoria está no roadmap de segurança.
 
 ---
 

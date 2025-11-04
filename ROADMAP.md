@@ -173,6 +173,7 @@ Este documento detalha o planejamento de desenvolvimento e evolução do sistema
 **Previsão**: Q4 2024
 
 **Melhorias planejadas**:
+- 📝 Migração de SHA-256 para bcrypt/Argon2 (hash de senhas)
 - 📝 Otimização de queries ao banco de dados
 - 📝 Cache de dados frequentes
 - 📝 Paginação em listas grandes
@@ -261,6 +262,7 @@ Este documento detalha o planejamento de desenvolvimento e evolução do sistema
 ## 🎯 Backlog de Funcionalidades
 
 ### Prioridade Alta 🔴
+- Upgrade de hash de senhas (SHA-256 → bcrypt/Argon2)
 - Backup automático
 - Logs de auditoria
 - Recuperação de senha

@@ -94,11 +94,13 @@ Acesse: http://localhost:8501
 
 ### Os dados ficam seguros?
 **Sim**, o sistema implementa várias camadas de segurança:
-- ✅ Senhas criptografadas com SHA-256
+- ✅ Senhas criptografadas com hash SHA-256
 - ✅ Autenticação obrigatória
 - ✅ Isolamento de dados por usuário
 - ✅ Sessões seguras
 - ✅ Sem compartilhamento entre nutricionistas
+
+**Nota de Segurança**: O sistema atualmente usa SHA-256 para hash de senhas. Para ambientes de produção com dados sensíveis, recomendamos atualizar para algoritmos mais robustos como bcrypt, scrypt ou Argon2, que incluem salt e proteção contra ataques de força bruta. Esta melhoria está planejada para versões futuras (veja ROADMAP.md).
 
 ### Onde os dados são armazenados?
 - **Local**: No arquivo `nutristock360.db` no seu computador

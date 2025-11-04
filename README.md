@@ -121,10 +121,12 @@ Consulte o [guia completo de deploy](guia) para instruções passo a passo.
 ## Segurança e Privacidade
 
 - ✅ Sistema com autenticação obrigatória
-- ✅ Senhas criptografadas (SHA-256)
+- ✅ Senhas criptografadas (SHA-256)*
 - ✅ Dados isolados por usuário (multiusuário)
 - ✅ Sessões seguras
 - ✅ Nenhum dado compartilhado entre nutricionistas
+
+*Nota: Para produção com dados sensíveis, recomenda-se atualizar para bcrypt/Argon2. Veja FAQ.md para detalhes.
 
 ## Documentação
 
