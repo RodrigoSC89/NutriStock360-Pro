@@ -305,10 +305,13 @@ Atualmente não temos vídeos, mas temos:
 - Interface intuitiva com dados de demonstração
 
 ### Posso revender ou oferecer como serviço?
-Depende da licença do projeto. Verifique o arquivo LICENSE no repositório. Geralmente:
+O código é de código aberto. Para uso comercial ou revenda:
 - ✅ Usar para seu consultório
 - ✅ Modificar para suas necessidades
-- ⚠️ Revender requer autorização específica
+- ⚠️ Revenda ou uso comercial: consulte o autor do projeto
+- ⚠️ Redistribuição: mantenha créditos apropriados
+
+Recomendamos entrar em contato via GitHub Issues para esclarecimentos sobre uso comercial.
 
 ---
 
